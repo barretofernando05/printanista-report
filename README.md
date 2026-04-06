@@ -1,26 +1,26 @@
 # Printanista Report
 
-## Arranque
+## Archivos
+- Copia tu dump original a `db/full_dump.sql`
+- Los grants iniciales ya están en `db/002_grants.sql`
 
-1. Copia tu dump real a `db/full_dump.sql`
-2. Ejecuta:
-
+## Levantar por primera vez
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-## Acceso
+## Levantar sin perder datos
+```bash
+docker compose up --build -d
+```
 
+## URLs
 - App: http://localhost:8000
 - Health: http://localhost:8000/api/health
-- Tablas detectadas: http://localhost:8000/api/debug/tables
+- Tablas: http://localhost:8000/api/debug/tables
+- Columnas: http://localhost:8000/api/debug/columns
 
 ## Notas
-- La app consulta vistas reales:
-  - `printanista_insumos.vw_equipo_insumos_con_alertas`
-  - `printanista_insumos.vw_equipo_insumos_resumen`
-  - `printanista_insumos.vw_equipo_insumos_detalle`
-  - `printanista_alertas.vw_alertas_actives`
-  - `printanista_reemplazos.vw_reemplazos_insumos_pct`
-- Los contadores salen desde `printanista.reportes_dispositivos`
+- La app consulta las vistas reales y detecta nombres de columnas en tiempo de ejecución.
+- El dump solo se aplica cuando el volumen de MariaDB está vacío.

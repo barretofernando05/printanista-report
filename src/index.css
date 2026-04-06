@@ -1,27 +1,22 @@
 * {
   box-sizing: border-box;
 }
-
 :root {
   color-scheme: light;
 }
-
 body {
   margin: 0;
   font-family: Arial, Helvetica, sans-serif;
   background: #f8fafc;
   color: #1f2937;
 }
-
 button,
 input {
   font: inherit;
 }
-
 table {
   border-collapse: collapse;
 }
-
 pre {
   white-space: pre-wrap;
 }

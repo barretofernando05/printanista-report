@@ -31,17 +31,17 @@ export default function App() {
     const resumen = result?.resumen || {};
     const contadores = result?.contadores || {};
     return [
-      ["Número de Serie", resumen.numero_serie || resumen.numero_serie_idx || "-"],
-      ["Cliente / Cuenta", resumen.nombre_cuenta || "-"],
-      ["Fabricante", resumen.fabricante || "-"],
-      ["Modelo", resumen.modelo || "-"],
+      ["Número de Serie", resumen.numero_serie || resumen.numero_serie_idx || resumen.n_mero_serie || "-"],
+      ["Cliente / Cuenta", resumen.nombre_cuenta || contadores?.nombre_cuenta || "-"],
+      ["Fabricante", resumen.fabricante || contadores?.fabricante || "-"],
+      ["Modelo", resumen.modelo || contadores?.modelo || "-"],
       ["IP", resumen.direccion_ip || contadores?.direcci_n_ip || "-"],
       ["Ubicación", resumen.ubicacion || "-"],
       ["ERP", resumen.id_erp || "-"],
       ["Último Reemplazo", resumen.fecha_de_reemplazo_ultima || "-"],
       ["Insumo Último", resumen.suministro_ultimo || "-"],
       ["Parte OEM Última", resumen.parte_oem_ultima || "-"],
-      ["Alertas Totales", `${resumen.alertas_total ?? 0}`],
+      ["Alertas Totales", `${resumen.alertas_total ?? result?.alertas?.length ?? 0}`],
       ["Última Alerta", resumen.alerta_ultima_fecha || "-"]
     ];
   }, [result]);
@@ -51,11 +51,9 @@ export default function App() {
       alert("Ingresa un número de serie.");
       return;
     }
-
     setIsSearching(true);
     setError("");
     setResult(null);
-
     try {
       const response = await fetch(`/api/equipo/${encodeURIComponent(searchQuery.trim())}`);
       const data = await response.json();
@@ -87,7 +85,6 @@ export default function App() {
     if (!rows || rows.length === 0) {
       return <EmptyState text="Sin datos para mostrar." />;
     }
-
     const keys = preferredColumns.length
       ? preferredColumns.filter((k) => rows[0] && Object.prototype.hasOwnProperty.call(rows[0], k))
       : Object.keys(rows[0]);
@@ -98,15 +95,7 @@ export default function App() {
           <thead>
             <tr style={{ background: "#f8fafc" }}>
               {keys.map((key) => (
-                <th
-                  key={key}
-                  style={{
-                    textAlign: "left",
-                    padding: "12px",
-                    borderBottom: "1px solid #e5e7eb",
-                    whiteSpace: "nowrap"
-                  }}
-                >
+                <th key={key} style={{ textAlign: "left", padding: "12px", borderBottom: "1px solid #e5e7eb", whiteSpace: "nowrap" }}>
                   {humanize(key)}
                 </th>
               ))}
@@ -116,14 +105,7 @@ export default function App() {
             {rows.map((row, idx) => (
               <tr key={idx}>
                 {keys.map((key) => (
-                  <td
-                    key={key}
-                    style={{
-                      padding: "12px",
-                      borderBottom: "1px solid #f1f5f9",
-                      verticalAlign: "top"
-                    }}
-                  >
+                  <td key={key} style={{ padding: "12px", borderBottom: "1px solid #f1f5f9", verticalAlign: "top" }}>
                     {stringify(row[key])}
                   </td>
                 ))}
@@ -143,9 +125,7 @@ export default function App() {
           <div style={{ fontSize: 22, fontWeight: 700, marginTop: 10 }}>TECHNOMA</div>
         </div>
 
-        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>
-          PRINTANISTA DB OPS
-        </div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>PRINTANISTA DB OPS</div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <button onClick={() => setCurrentView("query")} style={navButton(currentView === "query")}>
@@ -161,76 +141,32 @@ export default function App() {
 
       <main style={{ flex: 1, padding: 32 }}>
         <div style={{ maxWidth: 1320, margin: "0 auto" }}>
-          <div
-            style={{
-              background: "#fff",
-              padding: 20,
-              borderRadius: 14,
-              border: "1px solid #e5e7eb",
-              marginBottom: 24
-            }}
-          >
-            <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>
-              Buscar por número de serie
-            </label>
+          <div style={{ background: "#fff", padding: 20, borderRadius: 14, border: "1px solid #e5e7eb", marginBottom: 24 }}>
+            <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Buscar por número de serie</label>
             <div style={{ display: "flex", gap: 12 }}>
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder="Ej. 3359P703251"
-                style={{
-                  flex: 1,
-                  padding: 12,
-                  borderRadius: 10,
-                  border: "1px solid #cbd5e1"
-                }}
+                style={{ flex: 1, padding: 12, borderRadius: 10, border: "1px solid #cbd5e1" }}
               />
-              <button
-                onClick={handleSearch}
-                style={{
-                  background: "#111827",
-                  color: "#fff",
-                  border: "none",
-                  padding: "12px 18px",
-                  borderRadius: 10,
-                  fontWeight: 700
-                }}
-              >
+              <button onClick={handleSearch} style={{ background: "#111827", color: "#fff", border: "none", padding: "12px 18px", borderRadius: 10, fontWeight: 700 }}>
                 {isSearching ? "Buscando..." : "Buscar"}
               </button>
             </div>
           </div>
 
-          {error && (
-            <div
-              style={{
-                background: "#fee2e2",
-                color: "#991b1b",
-                padding: 14,
-                borderRadius: 10,
-                marginBottom: 20
-              }}
-            >
-              {error}
-            </div>
-          )}
+          {error && <div style={{ background: "#fee2e2", color: "#991b1b", padding: 14, borderRadius: 10, marginBottom: 20 }}>{error}</div>}
 
           {currentView === "reports" && (
-            <section
-              style={{
-                background: "#fff",
-                borderRadius: 14,
-                border: "1px solid #e5e7eb",
-                padding: 24
-              }}
-            >
+            <section style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: 24 }}>
               <h2 style={{ marginTop: 0 }}>Reportes Globales</h2>
               {!overview ? (
                 <EmptyState text="Carga el resumen global." />
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
-                  <MetricCard title="Equipos con alertas" value={overview.equipos_con_alertas} />
+                  <MetricCard title="Equipos con alertas" value={overview.equipos_con_alertas ?? "-"} />
                   <MetricCard title="Alertas activas" value={overview.alertas_activas} />
                   <MetricCard title="Reemplazos" value={overview.reemplazos} />
                   <MetricCard title="Equipos en resumen" value={overview.equipos_resumen} />
@@ -281,7 +217,10 @@ export default function App() {
                     "nombre_cuenta",
                     "fabricante",
                     "modelo",
-                    "numero_serie_txt",
+                    "numero_serie",
+                    "n_mero_serie",
+                    "serial",
+                    "serie",
                     "alerta",
                     "descripcion",
                     "sourcefile"
@@ -317,16 +256,7 @@ export default function App() {
           )}
 
           {currentView === "query" && !result && !error && (
-            <section
-              style={{
-                background: "#fff",
-                borderRadius: 14,
-                border: "1px solid #e5e7eb",
-                padding: 48,
-                textAlign: "center",
-                color: "#64748b"
-              }}
-            >
+            <section style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: 48, textAlign: "center", color: "#64748b" }}>
               <ServerCrash size={48} style={{ marginBottom: 12 }} />
               Ingresa una serie para consultar el equipo.
             </section>
@@ -338,18 +268,12 @@ export default function App() {
 }
 
 function humanize(value) {
-  return String(value)
-    .replaceAll("_", " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return String(value).replaceAll("_", " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
 function stringify(value) {
   if (value === null || value === undefined || value === "") return "-";
   return String(value);
 }
-
 function navButton(active) {
   return {
     display: "flex",
@@ -366,7 +290,6 @@ function navButton(active) {
     cursor: "pointer"
   };
 }
-
 function tabStyle(active) {
   return {
     display: "flex",
@@ -381,7 +304,6 @@ function tabStyle(active) {
     cursor: "pointer"
   };
 }
-
 function Card({ label, value }) {
   return (
     <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
@@ -390,7 +312,6 @@ function Card({ label, value }) {
     </div>
   );
 }
-
 function MetricCard({ title, value }) {
   return (
     <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 12, padding: 18 }}>
@@ -399,7 +320,6 @@ function MetricCard({ title, value }) {
     </div>
   );
 }
-
 function EmptyState({ text }) {
   return <div style={{ color: "#64748b", padding: 20 }}>{text}</div>;
 }

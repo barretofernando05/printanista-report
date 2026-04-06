@@ -1,8 +1,5 @@
-Coloca aquí tu dump completo con este nombre:
+Coloca aquí tu dump original con este nombre exacto:
 full_dump.sql
 
-Debe incluir:
-- printanista
-- printanista_alertas
-- printanista_insumos
-- printanista_reemplazos
+Solo se importa en la primera inicialización del volumen de MariaDB.
+Si ya existe el volumen con datos, MariaDB usará su base local persistente.
