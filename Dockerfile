@@ -17,7 +17,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
-COPY init.sql .
 COPY --from=frontend-builder /frontend/dist ./dist
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

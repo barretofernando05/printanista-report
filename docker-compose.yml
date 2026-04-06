@@ -3,8 +3,7 @@ version: "3.9"
 services:
   db:
     image: mariadb:11.4
-    container_name: printanista_db
-    restart: always
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: printanista
@@ -14,12 +13,11 @@ services:
       - "3307:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db/full_dump.sql:/docker-entrypoint-initdb.d/full_dump.sql
 
   app:
     build: .
-    container_name: printanista_app
-    restart: always
+    restart: unless-stopped
     depends_on:
       - db
     environment:
