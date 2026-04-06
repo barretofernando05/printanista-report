@@ -25,8 +25,11 @@ services:
       DB_NAME: printanista
       DB_USER: printanista
       DB_PASSWORD: printanista123
+      GMAIL_TOKEN_FILE: /app/secrets/token_technoma.json
     ports:
       - "8000:8000"
+    volumes:
+      - ./secrets:/app/secrets:ro
 
 volumes:
   mariadb_data:

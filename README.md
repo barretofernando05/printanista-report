@@ -1,17 +1,28 @@
-# Printanista Report
+# Printanista Report V3
 
-## Archivos
-- Copia tu dump original a `db/full_dump.sql`
-- Los grants iniciales ya están en `db/002_grants.sql`
+## Qué incluye
+- Consulta por serie en una sola web
+- Importación manual BD1
+- Importación manual BD3
+- Sync Gmail BD2 / BD3 / BD4
 
-## Levantar por primera vez
+## Gmail
+Monta tu token aquí:
+`./secrets/token_technoma.json`
+
+Ya está montado en docker-compose como:
+`./secrets:/app/secrets:ro`
+
+## Primera carga con dump
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-## Levantar sin perder datos
+## Actualizar solo código
 ```bash
+docker compose down
+git pull
 docker compose up --build -d
 ```
 
@@ -21,6 +32,7 @@ docker compose up --build -d
 - Tablas: http://localhost:8000/api/debug/tables
 - Columnas: http://localhost:8000/api/debug/columns
 
-## Notas
-- La app consulta las vistas reales y detecta nombres de columnas en tiempo de ejecución.
-- El dump solo se aplica cuando el volumen de MariaDB está vacío.
+## Importación
+- Manual BD1: desde la UI
+- Manual BD3: desde la UI
+- Sync Gmail BD2/BD3/BD4: desde la UI

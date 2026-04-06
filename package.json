@@ -1,11 +1,11 @@
 {
-  "name": "printanista-report",
+  "name": "printanista-report-v3",
   "private": true,
-  "version": "1.0.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "dev": "vite"
   },
   "dependencies": {
     "lucide-react": "^0.462.0",
