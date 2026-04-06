@@ -2,6 +2,10 @@
   box-sizing: border-box;
 }
 
+:root {
+  color-scheme: light;
+}
+
 body {
   margin: 0;
   font-family: Arial, Helvetica, sans-serif;
@@ -12,4 +16,12 @@ body {
 button,
 input {
   font: inherit;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+pre {
+  white-space: pre-wrap;
 }
