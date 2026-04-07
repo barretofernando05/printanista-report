@@ -23,7 +23,7 @@ AUTO_SYNC_MINUTES = int(os.getenv("AUTO_SYNC_MINUTES", "15"))
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 engine = create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}", pool_pre_ping=True)
-app = FastAPI(title="Printanista Report V5", version="5.0.0")
+app = FastAPI(title="Printanista Report V5.1", version="5.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 scheduler = BackgroundScheduler()
 
@@ -38,7 +38,8 @@ def exec_sql(sql, params=None):
     with engine.begin() as conn:
         conn.execute(text(sql), params or {})
 def get_columns(schema, table):
-    return {r[0] for r in rows("SELECT COLUMN_NAME FROM information_schema.columns WHERE table_schema=:s AND table_name=:t", {"s": schema, "t": table})}
+    result = rows("SELECT COLUMN_NAME FROM information_schema.columns WHERE table_schema=:s AND table_name=:t", {"s": schema, "t": table})
+    return {r["COLUMN_NAME"] for r in result}
 def pick_first(columns, candidates):
     for c in candidates:
         if c in columns: return c

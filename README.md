@@ -1,4 +1,4 @@
-# Printanista Report V5
+# Printanista Report V5.1
 
 Incluye:
 - dashboard con KPIs y gráficos
@@ -20,3 +20,8 @@ Actualizar solo código:
 docker compose down
 git pull
 docker compose up --build -d
+
+
+Cambios de V5.1:
+- fix de get_columns() para SQLAlchemy mappings
+- frontend tolerante a errores no JSON

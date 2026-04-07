@@ -21,7 +21,7 @@ export default function App(){
 
   const summaryCards=useMemo(()=>{const r=result?.resumen||{}; const c=result?.contadores||{}; return [["Número de Serie",r.numero_serie||r.numero_serie_idx||r.n_mero_serie||"-"],["Cliente / Cuenta",r.nombre_cuenta||c?.nombre_cuenta||"-"],["Fabricante",r.fabricante||c?.fabricante||"-"],["Modelo",r.modelo||c?.modelo||"-"],["IP",r.direccion_ip||c?.direcci_n_ip||"-"],["Ubicación",r.ubicacion||"-"],["ERP",r.id_erp||"-"],["Último Reemplazo",r.fecha_de_reemplazo_ultima||"-"],["Insumo Último",r.suministro_ultimo||"-"],["Parte OEM Última",r.parte_oem_ultima||"-"],["Alertas Totales",`${r.alertas_total??result?.alertas?.length??0}`],["Última Alerta",r.alerta_ultima_fecha||"-"]]},[result]);
 
-  const fetchJson=async(url,options={})=>{const response=await fetch(url,options); const data=await response.json(); if(!response.ok) throw new Error(data.detail||"Error de API."); return data;};
+  const fetchJson=async(url,options={})=>{const response=await fetch(url,options); const raw=await response.text(); let data; try{data=JSON.parse(raw)}catch{throw new Error(raw || `Error HTTP ${response.status}`)} if(!response.ok) throw new Error(data.detail||"Error de API."); return data;};
 
   const loadDashboard=async()=>{setBusy(s=>({...s,dashboard:true})); setError(""); try{
     const [kpis,overviewData,alertasCliente,alertasFabricante,reemplazosMes,topMono,topColor,equiposFabricante,jobsData]=await Promise.all([
