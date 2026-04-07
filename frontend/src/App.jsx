@@ -234,12 +234,12 @@ export default function App() {
             <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
               <div style={styles.card}>
                 <div style={{ fontWeight: 800, marginBottom: 8 }}>Importar BD1</div>
-                <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>Sube un archivo Excel. El sistema registrará el job y devolverá el resultado.</div>
+                <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>Sube un archivo. El sistema registrará el job y devolverá el resultado.</div>
                 <input type="file" accept=".xlsx,.csv" onChange={e => uploadFile("bd1", e.target.files?.[0])}/>
               </div>
               <div style={styles.card}>
                 <div style={{ fontWeight: 800, marginBottom: 8 }}>Importar BD3</div>
-                <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>Sube un archivo Excel. El sistema registrará el job y devolverá el resultado.</div>
+                <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>Sube un archivo. El sistema registrará el job y devolverá el resultado.</div>
                 <input type="file" accept=".xlsx,.csv" onChange={e => uploadFile("bd3", e.target.files?.[0])}/>
               </div>
             </section>

@@ -1,5 +1,5 @@
-FROM node:20 AS frontend-builder
-WORKDIR /frontend
+FROM node:20 as fe
+WORKDIR /f
 COPY frontend/package.json frontend/package-lock.json* frontend/vite.config.js frontend/index.html ./
 COPY frontend/src ./src
 RUN npm install
@@ -11,6 +11,6 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY backend_app.py ./app.py
-COPY --from=frontend-builder /frontend/dist ./dist
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY backend/app.py ./app.py
+COPY --from=fe /f/dist ./dist
+CMD ["uvicorn","app:app","--host","0.0.0.0","--port","8000"]

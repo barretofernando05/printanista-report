@@ -1,39 +1,36 @@
-# Printanista Proyecto Corregido
+# Printanista Report corregido
 
-## Qué resuelve
-- La raíz `/` abre la aplicación para usuarios.
-- Las rutas `/api/...` quedan separadas para backend.
+Este proyecto respeta esta estructura:
+
+- `backend/app.py`
+- `frontend/`
+- `db/`
+- `Dockerfile`
+- `docker-compose.yml`
+
+## Qué corrige
+- La raíz `/` sirve el frontend para usuarios.
+- Las rutas `/api/...` quedan para backend.
 - Tiene dashboard, línea de tiempo, detalle por cliente, búsqueda por serie y panel de importación.
 - Registra jobs en `job_runs` y `job_run_items`.
 
-## Estructura esperada
-- `db/full_dump.sql` → tu dump inicial
-- `db/002_grants.sql`
-- `db/003_jobs.sql`
-- `secrets/token_technoma.json` → reservado para futuras integraciones
+## Secret
+Colocar aquí:
+`secrets/token_technoma.json`
 
-## Levantar por primera vez
+## Primera ejecución
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-## Actualizar sin perder la base
+## Actualización normal
 ```bash
 docker compose down
-docker compose up --build -d
+docker compose build --no-cache
+docker compose up -d
 ```
 
-## URL para usuarios
-```text
-http://TU_IP:8000
-```
-
-## APIs
-- `/api/health`
-- `/api/dashboard/summary`
-- `/api/detail/alertas`
-- `/api/equipo/{serie}`
-- `/api/jobs`
-- `/api/import/bd1`
-- `/api/import/bd3`
+## Verificación
+- `http://TU_IP:8000` → frontend
+- `http://TU_IP:8000/api/health` → health
