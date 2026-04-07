@@ -1,40 +1,20 @@
-# Printanista Report 7.1
+# Printanista Report 7.2
 
-Estructura respetada:
-- `backend/app.py`
-- `frontend/`
-- `db/`
-- `Dockerfile`
-- `docker-compose.yml`
+Cambios:
+- se elimina fabricante del dashboard
+- se reemplaza por modelo
+- paneles:
+  - Alertas por Cliente
+  - Alertas por Modelo
+  - Reemplazos por Mes
+  - Equipos por Modelo
 
-## Incluye
-- raíz `/` sirviendo el frontend
-- filtros por fecha en dashboard y detalle
-- importación manual BD1 / BD3
-- Gmail Sync BD2 / BD3 / BD4 / All
+Incluye:
+- filtros por fecha
+- Gmail Sync
+- importación manual
 - historial de jobs
-- consulta por serie
+- búsqueda por serie
 
-## Secret
-Colocar en:
+Secret:
 `secrets/token_technoma.json`
-
-Se monta dentro del contenedor como:
-`/app/secrets/token_technoma.json`
-
-## Primera ejecución
-```bash
-docker compose down -v
-docker compose up --build
-```
-
-## Rebuild limpio
-```bash
-docker compose down
-docker compose build --no-cache
-docker compose up -d
-```
-
-## Validación
-- `http://TU_IP:8000/`
-- `http://TU_IP:8000/api/health`

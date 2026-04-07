@@ -3,8 +3,6 @@ import base64
 import hashlib
 import json
 import os
-import re
-from datetime import datetime
 from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
@@ -27,7 +25,7 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
-app = FastAPI(title="Printanista Report 7.1", version="7.1.0")
+app = FastAPI(title="Printanista Report 7.2", version="7.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -64,6 +62,20 @@ def safe_one(sql: str, params: dict[str, Any] | None = None) -> dict[str, Any] |
 def safe_count(sql: str, params: dict[str, Any] | None = None) -> int:
     r = safe_one(sql, params)
     return int((r or {}).get("total") or 0)
+
+def get_columns(schema: str, table: str) -> set[str]:
+    result = rows("""
+        SELECT COLUMN_NAME
+        FROM information_schema.columns
+        WHERE table_schema=:schema AND table_name=:table
+    """, {"schema": schema, "table": table})
+    return {r["COLUMN_NAME"] for r in result}
+
+def pick_first(columns: set[str], candidates: list[str]) -> str | None:
+    for c in candidates:
+        if c in columns:
+            return c
+    return None
 
 def ensure_job_tables() -> None:
     exec_sql("""
@@ -218,25 +230,67 @@ def dashboard_summary(date_from: str | None = Query(default=None), date_to: str 
         FROM printanista_insumos.dispositivos_detallado_gv2
         WHERE {where}
     """, params)
+
     equipos_alerta = safe_count(f"""
         SELECT COUNT(DISTINCT numero_serie_idx) AS total
         FROM printanista_alertas.alertas_actives
         WHERE {where}
     """, params)
-    clientes = safe_rows(f"""
-        SELECT COALESCE(nombre_cuenta, 'SIN CLIENTE') AS name, COUNT(*) AS total
-        FROM printanista_alertas.alertas_actives
-        WHERE {where}
-        GROUP BY nombre_cuenta
-        ORDER BY total DESC
-        LIMIT 10
-    """, params)
+
+    alert_cols = get_columns("printanista_alertas", "alertas_actives")
+    ins_cols = get_columns("printanista_insumos", "dispositivos_detallado_gv2")
+
+    cliente_col = pick_first(alert_cols, ["nombre_cuenta", "cliente", "cuenta", "account_name"])
+    modelo_alert_col = pick_first(alert_cols, ["modelo", "model"])
+    modelo_equipo_col = pick_first(ins_cols, ["modelo", "model"])
+
+    clientes = []
+    if cliente_col:
+        clientes = safe_rows(f"""
+            SELECT COALESCE(`{cliente_col}`, 'SIN CLIENTE') AS name, COUNT(*) AS total
+            FROM printanista_alertas.alertas_actives
+            WHERE {where}
+            GROUP BY `{cliente_col}`
+            ORDER BY total DESC
+            LIMIT 10
+        """, params)
+
+    modelos_alerta = []
+    if modelo_alert_col:
+        modelos_alerta = safe_rows(f"""
+            SELECT COALESCE(`{modelo_alert_col}`, 'SIN MODELO') AS name, COUNT(*) AS total
+            FROM printanista_alertas.alertas_actives
+            WHERE {where}
+            GROUP BY `{modelo_alert_col}`
+            ORDER BY total DESC
+            LIMIT 10
+        """, params)
+
+    modelos_equipos = []
+    if modelo_equipo_col:
+        modelos_equipos = safe_rows(f"""
+            SELECT COALESCE(`{modelo_equipo_col}`, 'SIN MODELO') AS name, COUNT(*) AS total
+            FROM printanista_insumos.dispositivos_detallado_gv2
+            WHERE {where}
+            GROUP BY `{modelo_equipo_col}`
+            ORDER BY total DESC
+            LIMIT 10
+        """, params)
+
     timeline = safe_rows(f"""
         SELECT CAST(report_date AS CHAR) AS name, COUNT(*) AS total
         FROM printanista_alertas.alertas_actives
         WHERE {where}
         GROUP BY report_date
         ORDER BY report_date
+    """, params)
+
+    reemplazos_mes = safe_rows(f"""
+        SELECT DATE_FORMAT(report_date, '%Y-%m') AS name, COUNT(*) AS total
+        FROM printanista_reemplazos.reemplazos_insumos_gv
+        WHERE {where}
+        GROUP BY DATE_FORMAT(report_date, '%Y-%m')
+        ORDER BY name
     """, params)
 
     return {
@@ -247,17 +301,33 @@ def dashboard_summary(date_from: str | None = Query(default=None), date_to: str 
             "porc_equipos_con_alertas": round((equipos_alerta / equipos) * 100, 2) if equipos else 0,
         },
         "clientes": clientes,
+        "modelos_alerta": modelos_alerta,
+        "modelos_equipos": modelos_equipos,
         "timeline": timeline,
+        "reemplazos_mes": reemplazos_mes,
     }
 
 @app.get("/api/detail/alertas")
-def detail_alertas(cliente: str, date_from: str | None = Query(default=None), date_to: str | None = Query(default=None)):
+def detail_alertas(cliente: str | None = None, modelo: str | None = None,
+                   date_from: str | None = Query(default=None), date_to: str | None = Query(default=None)):
     where, params = build_filters(date_from, date_to)
-    params["cliente"] = cliente
+    alert_cols = get_columns("printanista_alertas", "alertas_actives")
+    cliente_col = pick_first(alert_cols, ["nombre_cuenta", "cliente", "cuenta", "account_name"])
+    modelo_col = pick_first(alert_cols, ["modelo", "model"])
+
+    extra = []
+    if cliente and cliente_col:
+        extra.append(f"`{cliente_col}` = :cliente")
+        params["cliente"] = cliente
+    if modelo and modelo_col:
+        extra.append(f"`{modelo_col}` = :modelo")
+        params["modelo"] = modelo
+
+    extra_sql = (" AND " + " AND ".join(extra)) if extra else ""
     return safe_rows(f"""
         SELECT *
         FROM printanista_alertas.alertas_actives
-        WHERE nombre_cuenta = :cliente AND {where}
+        WHERE {where}{extra_sql}
         ORDER BY report_date DESC
         LIMIT 500
     """, params)

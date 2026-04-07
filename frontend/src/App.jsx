@@ -1,3 +1,4 @@
+\
 import React, { useEffect, useMemo, useState } from "react";
 import { LayoutDashboard, UploadCloud, History, Search, RefreshCw, MailCheck } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from "recharts";
@@ -26,7 +27,7 @@ function fmt(v) {
 
 export default function App() {
   const [view, setView] = useState("dashboard");
-  const [dashboard, setDashboard] = useState({ kpis: {}, clientes: [], timeline: [] });
+  const [dashboard, setDashboard] = useState({ kpis: {}, clientes: [], modelos_alerta: [], modelos_equipos: [], timeline: [], reemplazos_mes: [] });
   const [jobs, setJobs] = useState([]);
   const [detail, setDetail] = useState([]);
   const [detailTitle, setDetailTitle] = useState("");
@@ -103,6 +104,15 @@ export default function App() {
     } catch (e) { setError(e.message); }
   }
 
+  async function loadModelDetail(modelo) {
+    try {
+      const data = await fetchJson(`/api/detail/alertas?modelo=${encodeURIComponent(modelo)}${query ? "&" + query.slice(1) : ""}`);
+      setDetail(data);
+      setDetailTitle(`Detalle por modelo: ${modelo}`);
+      setView("detalle");
+    } catch (e) { setError(e.message); }
+  }
+
   async function buscarEquipo() {
     if (!serie.trim()) return;
     setError("");
@@ -159,7 +169,7 @@ export default function App() {
               {view === "equipo" && "Detalle del Equipo"}
             </div>
             <div style={{ color: "#64748b", marginTop: 6 }}>
-              {view === "dashboard" && "KPIs, gráficos, línea de tiempo y detalle por cliente."}
+              {view === "dashboard" && "KPIs, gráficos, línea de tiempo y detalle."}
               {view === "import" && "Carga manual y Gmail con trazabilidad."}
               {view === "history" && "Seguimiento de ejecuciones e importaciones."}
             </div>
@@ -186,7 +196,7 @@ export default function App() {
               <div style={styles.card}><div style={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>% equipos con alertas</div><div style={{ fontSize: 30, fontWeight: 800, marginTop: 8 }}>{fmt(dashboard.kpis.porc_equipos_con_alertas)}%</div></div>
             </section>
 
-            <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
               <div style={styles.card}>
                 <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Alertas por Cliente</div>
                 <div style={{ width: "100%", height: 320 }}>
@@ -202,17 +212,50 @@ export default function App() {
                 </div>
                 <div style={{ color: "#64748b", fontSize: 12 }}>Haz click en una barra para abrir el detalle.</div>
               </div>
+
               <div style={styles.card}>
-                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Línea de Tiempo de Alertas</div>
+                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Alertas por Modelo</div>
                 <div style={{ width: "100%", height: 320 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dashboard.timeline}>
+                    <BarChart data={dashboard.modelos_alerta} onClick={(e) => { if (e?.activeLabel) loadModelDetail(e.activeLabel); }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" hide />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="total" fill="#111827" radius={[6,6,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </section>
+
+            <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div style={styles.card}>
+                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Reemplazos por Mes</div>
+                <div style={{ width: "100%", height: 320 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={dashboard.reemplazos_mes}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
                       <Tooltip />
-                      <Line type="monotone" dataKey="total" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="total" stroke="#dc2626" strokeWidth={2.5} dot={{ r: 3 }} />
                     </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div style={styles.card}>
+                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Equipos por Modelo</div>
+                <div style={{ width: "100%", height: 320 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dashboard.modelos_equipos}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" hide />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="total" fill="#2563eb" radius={[6,6,0,0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -244,7 +287,7 @@ export default function App() {
                   <button style={styles.btn} onClick={() => runSync("bd4")}><MailCheck size={16} style={{marginRight:8, verticalAlign:"middle"}}/>Sync BD4</button>
                   <button style={styles.btn} onClick={() => runSync("all")}><MailCheck size={16} style={{marginRight:8, verticalAlign:"middle"}}/>Sync All</button>
                 </div>
-                <div style={{ color: "#64748b", fontSize: 12, marginTop: 10 }}>Requiere `secrets/token_technoma.json` montado en `/app/secrets`.</div>
+                <div style={{ color: "#64748b", fontSize: 12, marginTop: 10 }}>Requiere `secrets/token_technoma.json`.</div>
               </div>
               <div style={styles.card}>
                 <div style={{ fontWeight: 800, marginBottom: 8 }}>Resultado de la última ejecución</div>
