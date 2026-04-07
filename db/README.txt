@@ -1,2 +1,1 @@
-Coloca aquí tu dump original con este nombre exacto:
-full_dump.sql
+poner full_dump.sql

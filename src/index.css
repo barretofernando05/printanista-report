@@ -1,1 +1,0 @@
-*{box-sizing:border-box}:root{--bg:#f6f8fb;--panel:#fff;--muted:#64748b;--border:#e5e7eb;--text:#0f172a;--brand:#dc2626;--nav:#111827;--nav2:#1f2937;--soft:#fef2f2}body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}button,input,select{font:inherit}table{border-collapse:collapse}pre{white-space:pre-wrap}

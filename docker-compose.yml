@@ -1,16 +1,17 @@
 services:
-  db:
-    image: mariadb:11.4
-    environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: printanista
-      MYSQL_USER: printanista
-      MYSQL_PASSWORD: printanista123
-    ports: ["3307:3306"]
-    volumes:
-      - ./db:/docker-entrypoint-initdb.d
+ db:
+  image: mariadb:11
+  environment:
+   MYSQL_ROOT_PASSWORD: root123
+   MYSQL_DATABASE: printanista
+   MYSQL_USER: printanista
+   MYSQL_PASSWORD: printanista123
+  volumes:
+   - ./db/full_dump.sql:/docker-entrypoint-initdb.d/init.sql
 
-  app:
-    build: .
-    depends_on: [db]
-    ports: ["8000:8000"]
+ app:
+  build: .
+  ports:
+   - "8000:8000"
+  depends_on:
+   - db
