@@ -1,1 +1,0 @@
-poner full_dump.sql
