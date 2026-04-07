@@ -1,22 +1,26 @@
-# Printanista Report corregido
+# Printanista Report 7.1
 
-Este proyecto respeta esta estructura:
-
+Estructura respetada:
 - `backend/app.py`
 - `frontend/`
 - `db/`
 - `Dockerfile`
 - `docker-compose.yml`
 
-## Qué corrige
-- La raíz `/` sirve el frontend para usuarios.
-- Las rutas `/api/...` quedan para backend.
-- Tiene dashboard, línea de tiempo, detalle por cliente, búsqueda por serie y panel de importación.
-- Registra jobs en `job_runs` y `job_run_items`.
+## Incluye
+- raíz `/` sirviendo el frontend
+- filtros por fecha en dashboard y detalle
+- importación manual BD1 / BD3
+- Gmail Sync BD2 / BD3 / BD4 / All
+- historial de jobs
+- consulta por serie
 
 ## Secret
-Colocar aquí:
+Colocar en:
 `secrets/token_technoma.json`
+
+Se monta dentro del contenedor como:
+`/app/secrets/token_technoma.json`
 
 ## Primera ejecución
 ```bash
@@ -24,13 +28,13 @@ docker compose down -v
 docker compose up --build
 ```
 
-## Actualización normal
+## Rebuild limpio
 ```bash
 docker compose down
 docker compose build --no-cache
 docker compose up -d
 ```
 
-## Verificación
-- `http://TU_IP:8000` → frontend
-- `http://TU_IP:8000/api/health` → health
+## Validación
+- `http://TU_IP:8000/`
+- `http://TU_IP:8000/api/health`

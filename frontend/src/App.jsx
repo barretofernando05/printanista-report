@@ -1,5 +1,6 @@
+\
 import React, { useEffect, useMemo, useState } from "react";
-import { LayoutDashboard, UploadCloud, History, Search, RefreshCw } from "lucide-react";
+import { LayoutDashboard, UploadCloud, History, Search, RefreshCw, MailCheck } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from "recharts";
 
 const styles = {
@@ -49,11 +50,8 @@ export default function App() {
     const response = await fetch(url, options);
     const raw = await response.text();
     let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new Error(raw || `Error HTTP ${response.status}`);
-    }
+    try { data = JSON.parse(raw); }
+    catch { throw new Error(raw || `Error HTTP ${response.status}`); }
     if (!response.ok) throw new Error(data.detail || "Error de API");
     return data;
   }
@@ -76,8 +74,7 @@ export default function App() {
 
   async function uploadFile(kind, file) {
     if (!file) return;
-    setError("");
-    setMessage("");
+    setError(""); setMessage("");
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -85,9 +82,17 @@ export default function App() {
       setMessage(JSON.stringify(data, null, 2));
       await loadDashboard();
       setView("import");
-    } catch (e) {
-      setError(e.message);
-    }
+    } catch (e) { setError(e.message); }
+  }
+
+  async function runSync(kind) {
+    setError(""); setMessage("");
+    try {
+      const data = await fetchJson(`/api/sync/${kind}`, { method: "POST" });
+      setMessage(JSON.stringify(data, null, 2));
+      await loadDashboard();
+      setView("import");
+    } catch (e) { setError(e.message); }
   }
 
   async function loadClientDetail(cliente) {
@@ -96,9 +101,7 @@ export default function App() {
       setDetail(data);
       setDetailTitle(`Detalle de alertas: ${cliente}`);
       setView("detalle");
-    } catch (e) {
-      setError(e.message);
-    }
+    } catch (e) { setError(e.message); }
   }
 
   async function buscarEquipo() {
@@ -108,9 +111,7 @@ export default function App() {
       const data = await fetchJson(`/api/equipo/${encodeURIComponent(serie.trim())}`);
       setEquipo(data);
       setView("equipo");
-    } catch (e) {
-      setError(e.message);
-    }
+    } catch (e) { setError(e.message); }
   }
 
   const renderTable = (rows) => {
@@ -119,9 +120,7 @@ export default function App() {
     return (
       <div style={{ overflow: "auto" }}>
         <table style={styles.table}>
-          <thead>
-            <tr>{cols.map(c => <th key={c} style={styles.th}>{humanize(c)}</th>)}</tr>
-          </thead>
+          <thead><tr>{cols.map(c => <th key={c} style={styles.th}>{humanize(c)}</th>)}</tr></thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={i}>
@@ -162,7 +161,7 @@ export default function App() {
             </div>
             <div style={{ color: "#64748b", marginTop: 6 }}>
               {view === "dashboard" && "KPIs, gráficos, línea de tiempo y detalle por cliente."}
-              {view === "import" && "Carga archivos y ve exactamente qué se procesó."}
+              {view === "import" && "Carga manual y Gmail con trazabilidad."}
               {view === "history" && "Seguimiento de ejecuciones e importaciones."}
             </div>
           </div>
@@ -173,14 +172,8 @@ export default function App() {
 
         {(view === "dashboard" || view === "detalle") && (
           <div style={{ ...styles.card, marginBottom: 18, display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Desde</div>
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Hasta</div>
-              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-            </div>
+            <div><div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Desde</div><input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
+            <div><div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Hasta</div><input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>
             <button style={styles.btn} onClick={loadDashboard}>Aplicar filtros</button>
           </div>
         )}
@@ -210,7 +203,6 @@ export default function App() {
                 </div>
                 <div style={{ color: "#64748b", fontSize: 12 }}>Haz click en una barra para abrir el detalle.</div>
               </div>
-
               <div style={styles.card}>
                 <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Línea de Tiempo de Alertas</div>
                 <div style={{ width: "100%", height: 320 }}>
@@ -234,19 +226,31 @@ export default function App() {
             <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
               <div style={styles.card}>
                 <div style={{ fontWeight: 800, marginBottom: 8 }}>Importar BD1</div>
-                <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>Sube un archivo. El sistema registrará el job y devolverá el resultado.</div>
+                <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>Sube un archivo y registra el job.</div>
                 <input type="file" accept=".xlsx,.csv" onChange={e => uploadFile("bd1", e.target.files?.[0])}/>
               </div>
               <div style={styles.card}>
                 <div style={{ fontWeight: 800, marginBottom: 8 }}>Importar BD3</div>
-                <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>Sube un archivo. El sistema registrará el job y devolverá el resultado.</div>
+                <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>Sube un archivo y registra el job.</div>
                 <input type="file" accept=".xlsx,.csv" onChange={e => uploadFile("bd3", e.target.files?.[0])}/>
               </div>
             </section>
 
-            <section style={styles.card}>
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>Resultado de la última carga</div>
-              <pre style={{ margin: 0, background: "#0f172a", color: "#e2e8f0", padding: 16, borderRadius: 12, minHeight: 120 }}>{message || "Todavía no hay resultados."}</pre>
+            <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+              <div style={styles.card}>
+                <div style={{ fontWeight: 800, marginBottom: 12 }}>Gmail Sync</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button style={styles.btn} onClick={() => runSync("bd2")}><MailCheck size={16} style={{marginRight:8, verticalAlign:"middle"}}/>Sync BD2</button>
+                  <button style={styles.btn} onClick={() => runSync("bd3")}><MailCheck size={16} style={{marginRight:8, verticalAlign:"middle"}}/>Sync BD3</button>
+                  <button style={styles.btn} onClick={() => runSync("bd4")}><MailCheck size={16} style={{marginRight:8, verticalAlign:"middle"}}/>Sync BD4</button>
+                  <button style={styles.btn} onClick={() => runSync("all")}><MailCheck size={16} style={{marginRight:8, verticalAlign:"middle"}}/>Sync All</button>
+                </div>
+                <div style={{ color: "#64748b", fontSize: 12, marginTop: 10 }}>Requiere `secrets/token_technoma.json` montado en `/app/secrets`.</div>
+              </div>
+              <div style={styles.card}>
+                <div style={{ fontWeight: 800, marginBottom: 8 }}>Resultado de la última ejecución</div>
+                <pre style={{ margin: 0, background: "#0f172a", color: "#e2e8f0", padding: 16, borderRadius: 12, minHeight: 160 }}>{message || "Todavía no hay resultados."}</pre>
+              </div>
             </section>
           </>
         )}
