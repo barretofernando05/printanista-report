@@ -1,4 +1,3 @@
-\
 import React, { useEffect, useMemo, useState } from "react";
 import { LayoutDashboard, UploadCloud, History, Search, RefreshCw, MailCheck } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from "recharts";
