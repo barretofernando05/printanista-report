@@ -1,0 +1,1 @@
+Printanista v5.2 - copiar full_dump.sql en /db y ejecutar docker compose up --build

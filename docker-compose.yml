@@ -1,38 +1,16 @@
 services:
   db:
     image: mariadb:11.4
-    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: printanista
       MYSQL_USER: printanista
       MYSQL_PASSWORD: printanista123
-    ports:
-      - "3307:3306"
+    ports: ["3307:3306"]
     volumes:
-      - mariadb_data:/var/lib/mysql
-      - ./db/full_dump.sql:/docker-entrypoint-initdb.d/001_full_dump.sql:ro
-      - ./db/002_grants.sql:/docker-entrypoint-initdb.d/002_grants.sql:ro
-      - ./db/003_jobs.sql:/docker-entrypoint-initdb.d/003_jobs.sql:ro
+      - ./db:/docker-entrypoint-initdb.d
 
   app:
     build: .
-    restart: unless-stopped
-    depends_on:
-      - db
-    environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_NAME: printanista
-      DB_USER: printanista
-      DB_PASSWORD: printanista123
-      GMAIL_TOKEN_FILE: /app/secrets/token_technoma.json
-      AUTO_SYNC_ENABLED: "true"
-      AUTO_SYNC_MINUTES: "15"
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./secrets:/app/secrets:ro
-
-volumes:
-  mariadb_data:
+    depends_on: [db]
+    ports: ["8000:8000"]
