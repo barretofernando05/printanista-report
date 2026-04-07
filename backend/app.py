@@ -1,5 +1,3 @@
-\
-import base64
 import hashlib
 import json
 import os
@@ -25,7 +23,7 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
-app = FastAPI(title="Printanista Report 7.2", version="7.2.0")
+app = FastAPI(title="Printanista Report 7.1", version="7.1.1")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,18 +32,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# -----------------------------
+# DB helpers
+# -----------------------------
 def rows(sql: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     with engine.begin() as conn:
         return [dict(r) for r in conn.execute(text(sql), params or {}).mappings().all()]
+
 
 def one(sql: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
     with engine.begin() as conn:
         r = conn.execute(text(sql), params or {}).mappings().first()
         return dict(r) if r else None
 
+
 def exec_sql(sql: str, params: dict[str, Any] | None = None) -> None:
     with engine.begin() as conn:
         conn.execute(text(sql), params or {})
+
 
 def safe_rows(sql: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     try:
@@ -53,30 +58,22 @@ def safe_rows(sql: str, params: dict[str, Any] | None = None) -> list[dict[str, 
     except Exception:
         return []
 
+
 def safe_one(sql: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
     try:
         return one(sql, params)
     except Exception:
         return None
 
+
 def safe_count(sql: str, params: dict[str, Any] | None = None) -> int:
     r = safe_one(sql, params)
     return int((r or {}).get("total") or 0)
 
-def get_columns(schema: str, table: str) -> set[str]:
-    result = rows("""
-        SELECT COLUMN_NAME
-        FROM information_schema.columns
-        WHERE table_schema=:schema AND table_name=:table
-    """, {"schema": schema, "table": table})
-    return {r["COLUMN_NAME"] for r in result}
 
-def pick_first(columns: set[str], candidates: list[str]) -> str | None:
-    for c in candidates:
-        if c in columns:
-            return c
-    return None
-
+# -----------------------------
+# Schema bootstrap
+# -----------------------------
 def ensure_job_tables() -> None:
     exec_sql("""
     CREATE TABLE IF NOT EXISTS job_runs (
@@ -97,6 +94,7 @@ def ensure_job_tables() -> None:
       error_text LONGTEXT NULL
     )
     """)
+
     exec_sql("""
     CREATE TABLE IF NOT EXISTS job_run_items (
       id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -112,6 +110,23 @@ def ensure_job_tables() -> None:
     )
     """)
 
+
+def ensure_dashboard_view() -> None:
+    exec_sql("""
+    CREATE OR REPLACE VIEW printanista_alertas.vw_alertas_dashboard AS
+    SELECT
+      id,
+      report_date,
+      numero_serie_txt,
+      JSON_UNQUOTE(JSON_EXTRACT(alerta_json, '$.Nombre_Cuenta')) AS nombre_cuenta,
+      JSON_UNQUOTE(JSON_EXTRACT(alerta_json, '$.Fabricante')) AS fabricante,
+      JSON_UNQUOTE(JSON_EXTRACT(alerta_json, '$.Modelo')) AS modelo,
+      JSON_UNQUOTE(JSON_EXTRACT(alerta_json, '$.Número_Serie')) AS numero_serie_json,
+      alerta_json
+    FROM printanista_alertas.alertas_actives
+    """)
+
+
 @app.on_event("startup")
 def startup_event():
     try:
@@ -119,17 +134,41 @@ def startup_event():
     except Exception:
         pass
 
+    try:
+        ensure_dashboard_view()
+    except Exception:
+        pass
+
+
+# -----------------------------
+# Job helpers
+# -----------------------------
 def create_job(job_name: str, source_type: str, source_name: str | None):
     exec_sql("""
         INSERT INTO job_runs (job_name, source_type, source_name, status, started_at)
         VALUES (:job_name, :source_type, :source_name, 'running', NOW())
-    """, {"job_name": job_name, "source_type": source_type, "source_name": source_name})
+    """, {
+        "job_name": job_name,
+        "source_type": source_type,
+        "source_name": source_name,
+    })
     r = one("SELECT LAST_INSERT_ID() AS id")
     return int((r or {"id": 0})["id"])
 
-def finish_job(job_id: int, status: str, *, files_found=0, files_processed=0, files_skipped=0,
-               rows_inserted=0, rows_updated=0, rows_ignored=0, error_text: str | None = None,
-               details: dict[str, Any] | None = None):
+
+def finish_job(
+    job_id: int,
+    status: str,
+    *,
+    files_found: int = 0,
+    files_processed: int = 0,
+    files_skipped: int = 0,
+    rows_inserted: int = 0,
+    rows_updated: int = 0,
+    rows_ignored: int = 0,
+    error_text: str | None = None,
+    details: dict[str, Any] | None = None,
+):
     exec_sql("""
         UPDATE job_runs
         SET status=:status,
@@ -156,8 +195,18 @@ def finish_job(job_id: int, status: str, *, files_found=0, files_processed=0, fi
         "job_id": job_id,
     })
 
-def add_job_item(job_id: int, file_name: str | None, file_sha1: str | None, target_table: str | None,
-                 action_taken: str, rows_inserted=0, rows_updated=0, rows_ignored=0, message: str | None = None):
+
+def add_job_item(
+    job_id: int,
+    file_name: str | None,
+    file_sha1: str | None,
+    target_table: str | None,
+    action_taken: str,
+    rows_inserted: int = 0,
+    rows_updated: int = 0,
+    rows_ignored: int = 0,
+    message: str | None = None,
+):
     exec_sql("""
         INSERT INTO job_run_items
         (job_run_id, file_name, file_sha1, target_table, action_taken, rows_inserted, rows_updated, rows_ignored, message)
@@ -174,36 +223,59 @@ def add_job_item(job_id: int, file_name: str | None, file_sha1: str | None, targ
         "message": message,
     })
 
+
+# -----------------------------
+# Filters
+# -----------------------------
 def build_filters(date_from: str | None = None, date_to: str | None = None):
     filters = ["1=1"]
     params: dict[str, Any] = {}
+
     if date_from:
         filters.append("report_date >= :date_from")
         params["date_from"] = date_from
+
     if date_to:
         filters.append("report_date <= :date_to")
         params["date_to"] = date_to
+
     return " AND ".join(filters), params
 
+
+# -----------------------------
+# Gmail helpers
+# -----------------------------
 def gmail_service():
     if not os.path.exists(GMAIL_TOKEN_FILE):
         raise HTTPException(status_code=400, detail=f"No existe token Gmail en {GMAIL_TOKEN_FILE}")
     creds = Credentials.from_authorized_user_file(GMAIL_TOKEN_FILE, SCOPES)
     return build("gmail", "v1", credentials=creds)
 
+
 def gmail_search(query: str, max_results: int = 50):
     service = gmail_service()
-    res = service.users().messages().list(userId="me", q=query, maxResults=max_results).execute()
+    res = service.users().messages().list(
+        userId="me",
+        q=query,
+        maxResults=max_results
+    ).execute()
     return service, res.get("messages", [])
 
+
 def get_message_full(service, msg_id: str):
-    return service.users().messages().get(userId="me", id=msg_id, format="full").execute()
+    return service.users().messages().get(
+        userId="me",
+        id=msg_id,
+        format="full"
+    ).execute()
+
 
 def get_headers(message: dict[str, Any]):
     headers = {}
     for h in message.get("payload", {}).get("headers", []):
         headers[h["name"].lower()] = h["value"]
     return headers
+
 
 def walk_parts(parts):
     found = []
@@ -215,14 +287,22 @@ def walk_parts(parts):
         found.extend(walk_parts(p.get("parts", [])))
     return found
 
+
+# -----------------------------
+# API
+# -----------------------------
 @app.get("/api/health")
 def health():
     with engine.begin() as conn:
         conn.execute(text("SELECT 1"))
     return {"ok": True}
 
+
 @app.get("/api/dashboard/summary")
-def dashboard_summary(date_from: str | None = Query(default=None), date_to: str | None = Query(default=None)):
+def dashboard_summary(
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+):
     where, params = build_filters(date_from, date_to)
 
     equipos = safe_count(f"""
@@ -232,50 +312,28 @@ def dashboard_summary(date_from: str | None = Query(default=None), date_to: str 
     """, params)
 
     equipos_alerta = safe_count(f"""
-        SELECT COUNT(DISTINCT numero_serie_idx) AS total
+        SELECT COUNT(DISTINCT numero_serie_txt) AS total
         FROM printanista_alertas.alertas_actives
         WHERE {where}
     """, params)
 
-    alert_cols = get_columns("printanista_alertas", "alertas_actives")
-    ins_cols = get_columns("printanista_insumos", "dispositivos_detallado_gv2")
+    clientes = safe_rows(f"""
+        SELECT COALESCE(nombre_cuenta, 'SIN CLIENTE') AS name, COUNT(*) AS total
+        FROM printanista_alertas.vw_alertas_dashboard
+        WHERE {where}
+        GROUP BY nombre_cuenta
+        ORDER BY total DESC
+        LIMIT 10
+    """, params)
 
-    cliente_col = pick_first(alert_cols, ["nombre_cuenta", "cliente", "cuenta", "account_name"])
-    modelo_alert_col = pick_first(alert_cols, ["modelo", "model"])
-    modelo_equipo_col = pick_first(ins_cols, ["modelo", "model"])
-
-    clientes = []
-    if cliente_col:
-        clientes = safe_rows(f"""
-            SELECT COALESCE(`{cliente_col}`, 'SIN CLIENTE') AS name, COUNT(*) AS total
-            FROM printanista_alertas.alertas_actives
-            WHERE {where}
-            GROUP BY `{cliente_col}`
-            ORDER BY total DESC
-            LIMIT 10
-        """, params)
-
-    modelos_alerta = []
-    if modelo_alert_col:
-        modelos_alerta = safe_rows(f"""
-            SELECT COALESCE(`{modelo_alert_col}`, 'SIN MODELO') AS name, COUNT(*) AS total
-            FROM printanista_alertas.alertas_actives
-            WHERE {where}
-            GROUP BY `{modelo_alert_col}`
-            ORDER BY total DESC
-            LIMIT 10
-        """, params)
-
-    modelos_equipos = []
-    if modelo_equipo_col:
-        modelos_equipos = safe_rows(f"""
-            SELECT COALESCE(`{modelo_equipo_col}`, 'SIN MODELO') AS name, COUNT(*) AS total
-            FROM printanista_insumos.dispositivos_detallado_gv2
-            WHERE {where}
-            GROUP BY `{modelo_equipo_col}`
-            ORDER BY total DESC
-            LIMIT 10
-        """, params)
+    modelos = safe_rows(f"""
+        SELECT COALESCE(modelo, 'SIN MODELO') AS name, COUNT(*) AS total
+        FROM printanista_alertas.vw_alertas_dashboard
+        WHERE {where} AND COALESCE(fabricante, '') = 'RICOH'
+        GROUP BY modelo
+        ORDER BY total DESC
+        LIMIT 10
+    """, params)
 
     timeline = safe_rows(f"""
         SELECT CAST(report_date AS CHAR) AS name, COUNT(*) AS total
@@ -285,52 +343,50 @@ def dashboard_summary(date_from: str | None = Query(default=None), date_to: str 
         ORDER BY report_date
     """, params)
 
-    reemplazos_mes = safe_rows(f"""
-        SELECT DATE_FORMAT(report_date, '%Y-%m') AS name, COUNT(*) AS total
-        FROM printanista_reemplazos.reemplazos_insumos_gv
-        WHERE {where}
-        GROUP BY DATE_FORMAT(report_date, '%Y-%m')
-        ORDER BY name
-    """, params)
-
     return {
         "kpis": {
             "equipos_monitoreados": equipos,
-            "alertas_activas": safe_count(f"SELECT COUNT(*) AS total FROM printanista_alertas.alertas_actives WHERE {where}", params),
-            "reemplazos": safe_count(f"SELECT COUNT(*) AS total FROM printanista_reemplazos.reemplazos_insumos_gv WHERE {where}", params),
+            "alertas_activas": safe_count(
+                f"SELECT COUNT(*) AS total FROM printanista_alertas.alertas_actives WHERE {where}",
+                params
+            ),
+            "reemplazos": safe_count(
+                f"SELECT COUNT(*) AS total FROM printanista_reemplazos.reemplazos_insumos_gv WHERE {where}",
+                params
+            ),
             "porc_equipos_con_alertas": round((equipos_alerta / equipos) * 100, 2) if equipos else 0,
         },
         "clientes": clientes,
-        "modelos_alerta": modelos_alerta,
-        "modelos_equipos": modelos_equipos,
+        "modelos": modelos,
         "timeline": timeline,
-        "reemplazos_mes": reemplazos_mes,
     }
 
+
 @app.get("/api/detail/alertas")
-def detail_alertas(cliente: str | None = None, modelo: str | None = None,
-                   date_from: str | None = Query(default=None), date_to: str | None = Query(default=None)):
+def detail_alertas(
+    cliente: str,
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+):
     where, params = build_filters(date_from, date_to)
-    alert_cols = get_columns("printanista_alertas", "alertas_actives")
-    cliente_col = pick_first(alert_cols, ["nombre_cuenta", "cliente", "cuenta", "account_name"])
-    modelo_col = pick_first(alert_cols, ["modelo", "model"])
+    params["cliente"] = cliente
 
-    extra = []
-    if cliente and cliente_col:
-        extra.append(f"`{cliente_col}` = :cliente")
-        params["cliente"] = cliente
-    if modelo and modelo_col:
-        extra.append(f"`{modelo_col}` = :modelo")
-        params["modelo"] = modelo
-
-    extra_sql = (" AND " + " AND ".join(extra)) if extra else ""
     return safe_rows(f"""
-        SELECT *
-        FROM printanista_alertas.alertas_actives
-        WHERE {where}{extra_sql}
+        SELECT
+          id,
+          report_date,
+          numero_serie_txt,
+          nombre_cuenta,
+          fabricante,
+          modelo,
+          numero_serie_json,
+          alerta_json
+        FROM printanista_alertas.vw_alertas_dashboard
+        WHERE nombre_cuenta = :cliente AND {where}
         ORDER BY report_date DESC
         LIMIT 500
     """, params)
+
 
 @app.get("/api/equipo/{serie}")
 def equipo(serie: str):
@@ -340,29 +396,44 @@ def equipo(serie: str):
         WHERE numero_serie_idx = :serie OR numero_serie = :serie
         LIMIT 1
     """, {"serie": serie})
+
     if not r:
         raise HTTPException(status_code=404, detail="No se encontró el equipo.")
+
     return r
+
 
 @app.get("/api/jobs")
 def jobs():
     return safe_rows("SELECT * FROM job_runs ORDER BY id DESC LIMIT 100")
 
+
 @app.post("/api/import/bd1")
 async def import_bd1(file: UploadFile = File(...)):
     return await _generic_import(file, "bd1_manual", "printanista.reportes_dispositivos")
+
 
 @app.post("/api/import/bd3")
 async def import_bd3(file: UploadFile = File(...)):
     return await _generic_import(file, "bd3_manual", "printanista_insumos.dispositivos_detallado_gv2")
 
+
 async def _generic_import(file: UploadFile, job_name: str, target_table: str):
     content = await file.read()
     file_sha1 = hashlib.sha1(content).hexdigest()
     job_id = create_job(job_name, "manual_upload", file.filename)
+
     try:
-        add_job_item(job_id, file.filename, file_sha1, target_table, "processed", rows_inserted=1,
-                     message="Archivo recibido correctamente")
+        add_job_item(
+            job_id,
+            file.filename,
+            file_sha1,
+            target_table,
+            "processed",
+            rows_inserted=1,
+            message="Archivo recibido correctamente"
+        )
+
         result = {
             "status": "ok",
             "job_id": job_id,
@@ -373,26 +444,40 @@ async def _generic_import(file: UploadFile, job_name: str, target_table: str):
             "rows_inserted": 1,
             "rows_updated": 0,
             "rows_ignored": 0,
-            "message": "Archivo recibido y registrado correctamente"
+            "message": "Archivo recibido y registrado correctamente",
         }
-        finish_job(job_id, "success", files_found=1, files_processed=1, rows_inserted=1, details=result)
+
+        finish_job(
+            job_id,
+            "success",
+            files_found=1,
+            files_processed=1,
+            rows_inserted=1,
+            details=result,
+        )
         return result
+
     except Exception as exc:
         finish_job(job_id, "error", error_text=str(exc))
         raise HTTPException(status_code=500, detail=str(exc))
 
+
 def sync_gmail_generic(job_name: str, label: str, query: str, target_table: str):
     job_id = create_job(job_name, "gmail", label)
+
     try:
         service, messages = gmail_search(query)
         found = len(messages)
-        processed = skipped = inserted = 0
+        processed = 0
+        skipped = 0
+        inserted = 0
         seen_files = set()
 
         for m in messages:
             full = get_message_full(service, m["id"])
             headers = get_headers(full)
             attachments = walk_parts(full.get("payload", {}).get("parts", []))
+
             if not attachments:
                 skipped += 1
                 continue
@@ -400,12 +485,15 @@ def sync_gmail_generic(job_name: str, label: str, query: str, target_table: str)
             for filename, attachment_id in attachments:
                 file_key = f"{m['id']}::{filename}"
                 file_sha1 = hashlib.sha1(file_key.encode("utf-8")).hexdigest()
+
                 if file_key in seen_files:
                     skipped += 1
                     continue
+
                 seen_files.add(file_key)
-                inserted += 1
                 processed += 1
+                inserted += 1
+
                 add_job_item(
                     job_id,
                     filename,
@@ -413,7 +501,7 @@ def sync_gmail_generic(job_name: str, label: str, query: str, target_table: str)
                     target_table,
                     "gmail_processed",
                     rows_inserted=1,
-                    message=f"Subject={headers.get('subject','')} From={headers.get('from','')}"
+                    message=f"Subject={headers.get('subject', '')} From={headers.get('from', '')}"
                 )
 
         result = {
@@ -428,8 +516,9 @@ def sync_gmail_generic(job_name: str, label: str, query: str, target_table: str)
             "rows_inserted": inserted,
             "rows_updated": 0,
             "rows_ignored": 0,
-            "message": "Sync Gmail ejecutado"
+            "message": "Sync Gmail ejecutado",
         }
+
         finish_job(
             job_id,
             "success",
@@ -437,12 +526,14 @@ def sync_gmail_generic(job_name: str, label: str, query: str, target_table: str)
             files_processed=processed,
             files_skipped=skipped,
             rows_inserted=inserted,
-            details=result
+            details=result,
         )
         return result
+
     except Exception as exc:
         finish_job(job_id, "error", error_text=str(exc))
         raise HTTPException(status_code=500, detail=str(exc))
+
 
 @app.post("/api/sync/bd2")
 def sync_bd2():
@@ -453,6 +544,7 @@ def sync_bd2():
         "printanista_alertas.alertas_actives"
     )
 
+
 @app.post("/api/sync/bd3")
 def sync_bd3():
     return sync_gmail_generic(
@@ -461,6 +553,7 @@ def sync_bd3():
         'from:no-reply@printanistahub.com subject:"Reporte Programado v4" filename:xlsx newer_than:60d',
         "printanista_insumos.dispositivos_detallado_gv2"
     )
+
 
 @app.post("/api/sync/bd4")
 def sync_bd4():
@@ -471,23 +564,28 @@ def sync_bd4():
         "printanista_reemplazos.reemplazos_insumos_gv"
     )
 
+
 @app.post("/api/sync/all")
 def sync_all():
     r2 = sync_gmail_generic(
-        "bd2_sync_all", "Gmail BD2 Alertas",
+        "bd2_sync_all",
+        "Gmail BD2 Alertas",
         'from:no-reply@printanistahub.com (subject:"Alertas" OR subject:"Active Alerts") newer_than:60d',
         "printanista_alertas.alertas_actives"
     )
     r3 = sync_gmail_generic(
-        "bd3_sync_all", "Gmail BD3 Dispositivos",
+        "bd3_sync_all",
+        "Gmail BD3 Dispositivos",
         'from:no-reply@printanistahub.com subject:"Reporte Programado v4" filename:xlsx newer_than:60d',
         "printanista_insumos.dispositivos_detallado_gv2"
     )
     r4 = sync_gmail_generic(
-        "bd4_sync_all", "Gmail BD4 Reemplazos",
+        "bd4_sync_all",
+        "Gmail BD4 Reemplazos",
         'from:no-reply@printanistahub.com subject:"Reporte Programado v4" filename:xlsx newer_than:60d',
         "printanista_reemplazos.reemplazos_insumos_gv"
     )
+
     return {
         "status": "ok",
         "children": {"bd2": r2, "bd3": r3, "bd4": r4},
@@ -497,8 +595,12 @@ def sync_all():
         "rows_inserted": r2["rows_inserted"] + r3["rows_inserted"] + r4["rows_inserted"],
         "rows_updated": 0,
         "rows_ignored": 0,
-        "message": "Sync All ejecutado"
+        "message": "Sync All ejecutado",
     }
 
+
+# -----------------------------
+# Frontend at root
+# -----------------------------
 if os.path.isdir("dist"):
     app.mount("/", StaticFiles(directory="dist", html=True), name="frontend")
