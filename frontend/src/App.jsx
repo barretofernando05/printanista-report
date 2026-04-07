@@ -218,7 +218,9 @@ export default function App() {
     if (!rows || rows.length === 0) {
       return <div style={{ color: "#64748b" }}>Sin datos.</div>;
     }
+
     const cols = Object.keys(rows[0]);
+
     return (
       <div style={{ overflow: "auto" }}>
         <table style={styles.table}>
@@ -388,9 +390,18 @@ export default function App() {
               </div>
             </section>
 
-            <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <section
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 16,
+                marginBottom: 16,
+              }}
+            >
               <div style={styles.card}>
-                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Alertas por Cliente</div>
+                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>
+                  Alertas por Cliente
+                </div>
                 <div style={{ width: "100%", height: 320 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -413,7 +424,9 @@ export default function App() {
               </div>
 
               <div style={styles.card}>
-                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Alertas por Modelo</div>
+                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>
+                  Alertas por Modelo
+                </div>
                 <div style={{ width: "100%", height: 320 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dashboard.modelos || []}>
@@ -430,7 +443,9 @@ export default function App() {
 
             <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div style={styles.card}>
-                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Reemplazos por Mes</div>
+                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>
+                  Reemplazos por Mes
+                </div>
                 <div style={{ width: "100%", height: 320 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={dashboard.reemplazos_mes || []}>
@@ -438,14 +453,22 @@ export default function App() {
                       <XAxis dataKey="name" />
                       <YAxis />
                       <Tooltip />
-                      <Line type="monotone" dataKey="total" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 3 }} />
+                      <Line
+                        type="monotone"
+                        dataKey="total"
+                        stroke="#0f172a"
+                        strokeWidth={2.5}
+                        dot={{ r: 3 }}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
               <div style={styles.card}>
-                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>Equipos por Modelo</div>
+                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>
+                  Equipos por Modelo
+                </div>
                 <div style={{ width: "100%", height: 320 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dashboard.equipos_modelo || []}>
@@ -464,13 +487,24 @@ export default function App() {
 
         {view === "import" && (
           <>
-            <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+            <section
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 16,
+                marginBottom: 18,
+              }}
+            >
               <div style={styles.card}>
                 <div style={{ fontWeight: 800, marginBottom: 8 }}>Importar BD1</div>
                 <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>
                   Sube un archivo y registra el job.
                 </div>
-                <input type="file" accept=".xlsx,.csv" onChange={(e) => uploadFile("bd1", e.target.files?.[0])} />
+                <input
+                  type="file"
+                  accept=".xlsx,.csv"
+                  onChange={(e) => uploadFile("bd1", e.target.files?.[0])}
+                />
               </div>
 
               <div style={styles.card}>
@@ -478,14 +512,29 @@ export default function App() {
                 <div style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>
                   Sube un archivo y registra el job.
                 </div>
-                <input type="file" accept=".xlsx,.csv" onChange={(e) => uploadFile("bd3", e.target.files?.[0])} />
+                <input
+                  type="file"
+                  accept=".xlsx,.csv"
+                  onChange={(e) => uploadFile("bd3", e.target.files?.[0])}
+                />
               </div>
             </section>
 
-            <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+            <section
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 16,
+                marginBottom: 18,
+              }}
+            >
               <div style={styles.card}>
                 <div style={{ fontWeight: 800, marginBottom: 12 }}>Gmail Sync</div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button style={styles.btn} onClick={() => runSync("bd1")}>
+                    <MailCheck size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
+                    Sync BD1
+                  </button>
                   <button style={styles.btn} onClick={() => runSync("bd2")}>
                     <MailCheck size={16} style={{ marginRight: 8, verticalAlign: "middle" }} />
                     Sync BD2
@@ -509,7 +558,9 @@ export default function App() {
               </div>
 
               <div style={styles.card}>
-                <div style={{ fontWeight: 800, marginBottom: 8 }}>Resultado de la última ejecución</div>
+                <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                  Resultado de la última ejecución
+                </div>
                 <pre
                   style={{
                     margin: 0,
@@ -552,7 +603,9 @@ export default function App() {
           </section>
         )}
 
-        {view === "equipo" && <section style={styles.card}>{renderTable(equipo ? [equipo] : [])}</section>}
+        {view === "equipo" && (
+          <section style={styles.card}>{renderTable(equipo ? [equipo] : [])}</section>
+        )}
       </main>
     </div>
   );
