@@ -23,7 +23,7 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
-app = FastAPI(title="Printanista Report 7.1", version="7.1.1")
+app = FastAPI(title="Printanista Report 7.1.2", version="7.1.2")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -72,7 +72,7 @@ def safe_count(sql: str, params: dict[str, Any] | None = None) -> int:
 
 
 # -----------------------------
-# Schema bootstrap
+# Bootstrap
 # -----------------------------
 def ensure_job_tables() -> None:
     exec_sql("""
@@ -111,7 +111,7 @@ def ensure_job_tables() -> None:
     """)
 
 
-def ensure_dashboard_view() -> None:
+def ensure_alertas_dashboard_view() -> None:
     exec_sql("""
     CREATE OR REPLACE VIEW printanista_alertas.vw_alertas_dashboard AS
     SELECT
@@ -135,7 +135,7 @@ def startup_event():
         pass
 
     try:
-        ensure_dashboard_view()
+        ensure_alertas_dashboard_view()
     except Exception:
         pass
 
@@ -343,6 +343,22 @@ def dashboard_summary(
         ORDER BY report_date
     """, params)
 
+    reemplazos_mes = safe_rows("""
+        SELECT DATE_FORMAT(report_date, '%Y-%m') AS name, COUNT(*) AS total
+        FROM printanista_reemplazos.reemplazos_insumos_gv
+        WHERE report_date IS NOT NULL
+        GROUP BY DATE_FORMAT(report_date, '%Y-%m')
+        ORDER BY name
+    """)
+
+    equipos_modelo = safe_rows("""
+        SELECT COALESCE(modelo, 'SIN MODELO') AS name, COUNT(*) AS total
+        FROM printanista_insumos.dispositivos_detallado_gv2
+        GROUP BY modelo
+        ORDER BY total DESC
+        LIMIT 10
+    """)
+
     return {
         "kpis": {
             "equipos_monitoreados": equipos,
@@ -359,6 +375,8 @@ def dashboard_summary(
         "clientes": clientes,
         "modelos": modelos,
         "timeline": timeline,
+        "reemplazos_mes": reemplazos_mes,
+        "equipos_modelo": equipos_modelo,
     }
 
 
