@@ -1,4 +1,4 @@
-FROM node:20 as fe
+FROM node:20 AS fe
 WORKDIR /f
 COPY frontend/package.json frontend/package-lock.json* frontend/vite.config.js frontend/index.html ./
 COPY frontend/src ./src
