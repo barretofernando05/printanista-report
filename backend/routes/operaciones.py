@@ -56,21 +56,34 @@ def sin_reportar(
     client_contains: str | None = None,
     limit: int = 5000,
 ):
-    filters = ["dias_sin_reportar >= :min_days_no_report"]
+    filters = [
+        "last_report_date IS NOT NULL",
+        "max_report_date IS NOT NULL",
+        "DATEDIFF(max_report_date, last_report_date) >= :min_days_no_report",
+    ]
     params = {"min_days_no_report": min_days_no_report}
 
     if client_contains:
-        filters.append("LOWER(COALESCE(cliente,'')) LIKE :client_contains")
+        filters.append("LOWER(COALESCE(cliente_reciente,'')) LIKE :client_contains")
         params["client_contains"] = f"%{client_contains.lower()}%"
 
     where = " AND ".join(filters)
 
     data = safe_rows(
         f"""
-        SELECT *
+        SELECT
+            serie_norm AS serie,
+            cliente_reciente AS cliente,
+            modelo_reciente AS modelo,
+            fabricante_reciente AS fabricante,
+            last_audit_date AS ultima_auditoria,
+            last_report_date AS ultimo_reporte,
+            max_report_date,
+            DATEDIFF(max_report_date, last_report_date) AS dias_sin_reportar,
+            DATEDIFF(CURDATE(), last_report_date) AS dias_hasta_hoy
         FROM printanista.rpt_serie_status
         WHERE {where}
-        ORDER BY dias_sin_reportar DESC
+        ORDER BY dias_sin_reportar DESC, ultimo_reporte ASC
         LIMIT {limit}
         """,
         params,
@@ -90,14 +103,22 @@ def series_repetidas(
 ):
     data = safe_rows(
         """
-        SELECT *
+        SELECT
+            serie_norm AS serie,
+            COUNT(DISTINCT cliente_norm) AS clientes_distintos,
+            SUM(apariciones) AS apariciones,
+            MAX(last_seen) AS last_seen
         FROM printanista.rpt_serie_cliente
-        WHERE clientes_distintos >= :min_distinct_clients
-        ORDER BY clientes_distintos DESC
+        WHERE last_seen IS NOT NULL
+          AND last_seen >= CURDATE() - INTERVAL :active_last_days DAY
+        GROUP BY serie_norm
+        HAVING COUNT(DISTINCT cliente_norm) >= :min_distinct_clients
+        ORDER BY clientes_distintos DESC, apariciones DESC, last_seen DESC
         LIMIT :limit
         """,
         {
             "min_distinct_clients": min_distinct_clients,
+            "active_last_days": active_last_days,
             "limit": limit,
         },
     )
@@ -112,10 +133,14 @@ def series_repetidas(
 def series_repetidas_clientes(serie: str):
     data = safe_rows(
         """
-        SELECT *
+        SELECT
+            serie_norm AS serie,
+            cliente_norm AS cliente,
+            apariciones,
+            last_seen
         FROM printanista.rpt_serie_cliente
-        WHERE serie = :serie
-        ORDER BY last_seen DESC
+        WHERE serie_norm = :serie
+        ORDER BY last_seen DESC, apariciones DESC, cliente_norm ASC
         """,
         {"serie": serie},
     )
