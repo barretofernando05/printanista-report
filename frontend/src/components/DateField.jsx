@@ -5,20 +5,27 @@ export default function DateField({ label, value, onChange }) {
   const inputRef = useRef(null);
 
   const openPicker = () => {
-    if (inputRef.current && typeof inputRef.current.showPicker === "function") {
-      inputRef.current.showPicker();
-    } else if (inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.click();
+    const el = inputRef.current;
+    if (!el) return;
+
+    if (typeof el.showPicker === "function") {
+      el.showPicker();
+      return;
     }
+
+    el.focus();
+    el.click();
   };
 
   return (
-    <label style={{ display: "grid", gap: 6 }}>
-      {label && <span style={{ fontSize: 13, color: "#cbd5e1" }}>{label}</span>}
+    <div style={{ display: "grid", gap: 6, width: "100%" }}>
+      {label && (
+        <div style={{ fontSize: 13, color: "#cbd5e1" }}>
+          {label}
+        </div>
+      )}
 
       <div
-        onClick={openPicker}
         style={{
           display: "flex",
           alignItems: "center",
@@ -28,7 +35,7 @@ export default function DateField({ label, value, onChange }) {
           border: "1px solid #334155",
           borderRadius: 10,
           padding: "10px 12px",
-          cursor: "pointer",
+          width: "100%",
         }}
       >
         <input
@@ -38,23 +45,19 @@ export default function DateField({ label, value, onChange }) {
           onChange={onChange}
           style={{
             flex: 1,
+            minWidth: 0,
             background: "transparent",
             color: "#fff",
             border: "none",
             outline: "none",
             fontSize: 14,
             colorScheme: "dark",
-            cursor: "pointer",
           }}
         />
 
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            openPicker();
-          }}
+          onClick={openPicker}
           style={{
             background: "transparent",
             border: "none",
@@ -68,6 +71,6 @@ export default function DateField({ label, value, onChange }) {
           <CalendarDays size={18} />
         </button>
       </div>
-    </label>
+    </div>
   );
 }
