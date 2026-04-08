@@ -11,6 +11,6 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY backend/app.py ./app.py
+COPY backend ./backend
 COPY --from=fe /f/dist ./dist
-CMD ["uvicorn","app:app","--host","0.0.0.0","--port","8000"]
+CMD ["uvicorn","backend.app:app","--host","0.0.0.0","--port","8000"]
