@@ -3,46 +3,74 @@ from ..db import safe_rows, safe_one
 
 router = APIRouter(prefix="/api/serie", tags=["consulta"])
 
+
 @router.get("/{serie}/resumen")
 def resumen(serie: str):
-    row = safe_one("""
-        SELECT
-          d.numero_serie_idx AS numero_serie,
-          d.report_date AS report_date_dispositivo,
-          d.nombre_cuenta,
-          d.fabricante,
-          d.modelo,
-          d.direccion_ip,
-          d.id_erp,
-          d.ubicacion,
-          r.report_date AS report_date_reemplazo_ultimo,
-          r.suministro AS suministro_ultimo,
-          r.parte_oem AS parte_oem_ultima,
-          r.fecha_de_reemplazo AS fecha_de_reemplazo_ultima,
-          r.contador_al_reemplazo AS contador_al_reemplazo_ultimo,
-          c.reportdate AS report_date_ult,
-          c.total_p_ginas_mono,
-          c.total_p_ginas_color
-        FROM printanista_insumos.dispositivos_detallado_gv2 d
-        LEFT JOIN printanista_reemplazos.reemplazos_insumos_gv r
-          ON r.numero_serie = d.numero_serie_idx
-        LEFT JOIN printanista.reportes_dispositivos c
-          ON c.n_mero_serie = d.numero_serie_idx
-        WHERE d.numero_serie_idx = :serie OR d.numero_serie = :serie
-        ORDER BY d.report_date DESC
+    row = safe_one(
+        """
+        SELECT *
+        FROM printanista_insumos.vw_equipo_insumos_con_alertas
+        WHERE numero_serie_idx = :serie OR numero_serie = :serie
+        ORDER BY report_date DESC
         LIMIT 1
-    """, {"serie": serie})
+        """,
+        {"serie": serie},
+    )
+
+    if not row:
+        row = safe_one(
+            """
+            SELECT *
+            FROM printanista_insumos.vw_equipo_insumos_resumen
+            WHERE numero_serie_idx = :serie OR numero_serie = :serie
+            ORDER BY report_date DESC
+            LIMIT 1
+            """,
+            {"serie": serie},
+        )
+
     if not row:
         raise HTTPException(status_code=404, detail="No se encontró la serie.")
+
     return row
+
 
 @router.get("/{serie}/insumos")
 def insumos(serie: str):
-    return {"rows": safe_rows("SELECT * FROM printanista_insumos.dispositivos_detallado_gv2 WHERE numero_serie_idx = :serie OR numero_serie = :serie ORDER BY report_date DESC LIMIT 500", {"serie": serie})}
+    return {
+        "rows": safe_rows(
+            """
+            SELECT *
+            FROM printanista_insumos.vw_equipo_insumos_detalle
+            WHERE numero_serie_idx = :serie OR numero_serie = :serie
+            ORDER BY report_date DESC
+            LIMIT 500
+            """,
+            {"serie": serie},
+        )
+    }
+
 
 @router.get("/{serie}/alertas")
 def alertas(serie: str):
-    return {"rows": safe_rows("""
+    # Primero intentamos con la vista si existe y tiene la serie
+    data = safe_rows(
+        """
+        SELECT *
+        FROM printanista_alertas.vw_alertas_actives
+        WHERE numero_serie_txt = :serie
+        ORDER BY report_date DESC
+        LIMIT 500
+        """,
+        {"serie": serie},
+    )
+
+    if data:
+        return {"rows": data}
+
+    # Fallback a tabla base parseando JSON
+    data = safe_rows(
+        """
         SELECT
           report_date,
           JSON_UNQUOTE(JSON_EXTRACT(alerta_json, '$.Tipo')) AS tipo,
@@ -64,16 +92,54 @@ def alertas(serie: str):
         WHERE numero_serie_txt = :serie
         ORDER BY report_date DESC
         LIMIT 500
-    """, {"serie": serie})}
+        """,
+        {"serie": serie},
+    )
+
+    return {"rows": data}
+
 
 @router.get("/{serie}/reemplazos")
 def reemplazos(serie: str):
-    return {"rows": safe_rows("SELECT * FROM printanista_reemplazos.reemplazos_insumos_gv WHERE numero_serie = :serie ORDER BY report_date DESC LIMIT 500", {"serie": serie})}
+    return {
+        "rows": safe_rows(
+            """
+            SELECT *
+            FROM printanista_reemplazos.vw_reemplazos_insumos_pct
+            WHERE numero_serie = :serie
+               OR numero_serie_idx = :serie
+            ORDER BY report_date DESC
+            LIMIT 500
+            """,
+            {"serie": serie},
+        )
+    }
+
 
 @router.get("/{serie}/contadores")
 def contadores(serie: str, date_from: str | None = None, date_to: str | None = None):
-    filters = ["n_mero_serie = :serie"]; params = {"serie": serie}
-    if date_from: filters.append("reportdate >= :date_from"); params["date_from"] = date_from
-    if date_to: filters.append("reportdate <= :date_to"); params["date_to"] = date_to
+    filters = ["n_mero_serie = :serie"]
+    params = {"serie": serie}
+
+    if date_from:
+        filters.append("reportdate >= :date_from")
+        params["date_from"] = date_from
+
+    if date_to:
+        filters.append("reportdate <= :date_to")
+        params["date_to"] = date_to
+
     where = " AND ".join(filters)
-    return {"rows": safe_rows(f"SELECT * FROM printanista.reportes_dispositivos WHERE {where} ORDER BY reportdate DESC LIMIT 500", params)}
+
+    return {
+        "rows": safe_rows(
+            f"""
+            SELECT *
+            FROM printanista.reportes_dispositivos
+            WHERE {where}
+            ORDER BY reportdate DESC
+            LIMIT 500
+            """,
+            params,
+        )
+    }
