@@ -25,10 +25,15 @@ export default function SeriesRepetidasPage({ openSerie }) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const load = async () => {
+  const buildQueryString = () => {
     const qs = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => qs.set(k, v));
-    setData(await fetchJson(`/api/operaciones/series-repetidas?${qs.toString()}`));
+    return qs.toString();
+  };
+
+  const load = async () => {
+    const qs = buildQueryString();
+    setData(await fetchJson(`/api/operaciones/series-repetidas?${qs}`));
   };
 
   const loadClients = async (serie) => {
@@ -37,6 +42,25 @@ export default function SeriesRepetidasPage({ openSerie }) {
       `/api/operaciones/series-repetidas/${encodeURIComponent(serie)}/clientes`
     );
     setClients(result.rows || []);
+  };
+
+  const exportExcel = () => {
+    const qs = buildQueryString();
+    const url = qs
+      ? `/api/operaciones/series-repetidas/export?${qs}`
+      : `/api/operaciones/series-repetidas/export`;
+
+    window.open(url, "_blank");
+  };
+
+  const exportClientsExcel = () => {
+    if (!selectedSerie) return;
+
+    const url = `/api/operaciones/series-repetidas/${encodeURIComponent(
+      selectedSerie
+    )}/clientes/export`;
+
+    window.open(url, "_blank");
   };
 
   useEffect(() => {
@@ -68,13 +92,19 @@ export default function SeriesRepetidasPage({ openSerie }) {
           <input
             type="number"
             value={filters.active_last_days}
-            onChange={(e) => setFilters({ ...filters, active_last_days: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, active_last_days: e.target.value })
+            }
             style={inputStyle}
           />
         </Field>
 
         <button onClick={load} style={btnStyle}>
           Generar reporte
+        </button>
+
+        <button onClick={exportExcel} style={ghostBtn}>
+          Exportar Excel
         </button>
       </FilterPanel>
 
@@ -110,9 +140,33 @@ export default function SeriesRepetidasPage({ openSerie }) {
         </div>
 
         <div style={panel}>
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 14 }}>
-            Clientes asignados a la serie seleccionada
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 14,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: 18 }}>
+              Clientes asignados a la serie seleccionada
+            </div>
+
+            <button
+              onClick={exportClientsExcel}
+              style={{
+                ...ghostBtn,
+                opacity: selectedSerie ? 1 : 0.5,
+                cursor: selectedSerie ? "pointer" : "not-allowed",
+              }}
+              disabled={!selectedSerie}
+            >
+              Exportar Excel
+            </button>
           </div>
+
           <DataTable
             rows={clients}
             pageSize={15}
@@ -137,7 +191,9 @@ function Mini({ title, value }) {
   return (
     <div style={panel}>
       <div style={{ color: "#94a3b8", fontSize: 13 }}>{title}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>{value ?? "-"}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>
+        {value ?? "-"}
+      </div>
     </div>
   );
 }
@@ -153,6 +209,16 @@ const btnStyle = {
   background: "#ef4444",
   color: "#fff",
   border: "none",
+  borderRadius: 12,
+  padding: "12px 16px",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const ghostBtn = {
+  background: "#0b1220",
+  color: "#fff",
+  border: "1px solid #334155",
   borderRadius: 12,
   padding: "12px 16px",
   fontWeight: 700,

@@ -1,16 +1,11 @@
 from fastapi import APIRouter
 from ..db import safe_rows, safe_one
+from ..services.export_utils import excel_response
 
 router = APIRouter(prefix="/api/operaciones", tags=["operaciones"])
 
 
-@router.get("/reemplazos")
-def reemplazos(
-    date_from: str | None = None,
-    date_to: str | None = None,
-    client_contains: str | None = None,
-    limit: int = 500,
-):
+def query_reemplazos(date_from=None, date_to=None, client_contains=None, limit=500):
     filters = ["1=1"]
     params = {}
 
@@ -28,7 +23,7 @@ def reemplazos(
 
     where = " AND ".join(filters)
 
-    data = safe_rows(
+    rows = safe_rows(
         f"""
         SELECT
             nombre_cuenta,
@@ -59,25 +54,10 @@ def reemplazos(
         """,
         params,
     )
-
-    return {
-        "summary": {
-            "eventos": len(data),
-            "innecesarios": 0,
-            "no_nuevos": 0,
-            "sin_alerta": 0,
-        },
-        "rows": data,
-    }
+    return rows
 
 
-@router.get("/contadores")
-def contadores(
-    date_from: str | None = None,
-    date_to: str | None = None,
-    client_contains: str | None = None,
-    limit: int = 500,
-):
+def query_contadores(date_from=None, date_to=None, client_contains=None, limit=500):
     filters = ["1=1"]
     params = {}
 
@@ -128,18 +108,10 @@ def contadores(
         params,
     ) or {"total": 0, "series": 0, "ultimo_reporte": None}
 
-    return {
-        "summary": summary,
-        "rows": rows,
-    }
+    return rows, summary
 
 
-@router.get("/sin-reportar")
-def sin_reportar(
-    min_days_no_report: int = 60,
-    client_contains: str | None = None,
-    limit: int = 5000,
-):
+def query_sin_reportar(min_days_no_report=60, client_contains=None, limit=5000):
     filters = [
         "last_report_date IS NOT NULL",
         "max_report_date IS NOT NULL",
@@ -153,7 +125,7 @@ def sin_reportar(
 
     where = " AND ".join(filters)
 
-    data = safe_rows(
+    rows = safe_rows(
         f"""
         SELECT
             serie_norm AS serie,
@@ -172,20 +144,11 @@ def sin_reportar(
         """,
         params,
     )
-
-    return {
-        "summary": {"total": len(data)},
-        "rows": data,
-    }
+    return rows
 
 
-@router.get("/series-repetidas")
-def series_repetidas(
-    min_distinct_clients: int = 2,
-    active_last_days: int = 90,
-    limit: int = 5000,
-):
-    data = safe_rows(
+def query_series_repetidas(min_distinct_clients=2, active_last_days=90, limit=5000):
+    rows = safe_rows(
         """
         SELECT
             serie_norm AS serie,
@@ -206,16 +169,11 @@ def series_repetidas(
             "limit": limit,
         },
     )
-
-    return {
-        "summary": {"series": len(data)},
-        "rows": data,
-    }
+    return rows
 
 
-@router.get("/series-repetidas/{serie}/clientes")
-def series_repetidas_clientes(serie: str):
-    data = safe_rows(
+def query_series_repetidas_clientes(serie: str):
+    rows = safe_rows(
         """
         SELECT
             serie_norm AS serie,
@@ -228,5 +186,81 @@ def series_repetidas_clientes(serie: str):
         """,
         {"serie": serie},
     )
+    return rows
 
+
+@router.get("/reemplazos")
+def reemplazos(date_from: str | None = None, date_to: str | None = None, client_contains: str | None = None, limit: int = 500):
+    data = query_reemplazos(date_from, date_to, client_contains, limit)
+    return {
+        "summary": {
+            "eventos": len(data),
+            "innecesarios": 0,
+            "no_nuevos": 0,
+            "sin_alerta": 0,
+        },
+        "rows": data,
+    }
+
+
+@router.get("/reemplazos/export")
+def reemplazos_export(date_from: str | None = None, date_to: str | None = None, client_contains: str | None = None, limit: int = 5000):
+    rows = query_reemplazos(date_from, date_to, client_contains, limit)
+    return excel_response(rows, "reemplazos_bd3")
+
+
+@router.get("/contadores")
+def contadores(date_from: str | None = None, date_to: str | None = None, client_contains: str | None = None, limit: int = 500):
+    rows, summary = query_contadores(date_from, date_to, client_contains, limit)
+    return {
+        "summary": summary,
+        "rows": rows,
+    }
+
+
+@router.get("/contadores/export")
+def contadores_export(date_from: str | None = None, date_to: str | None = None, client_contains: str | None = None, limit: int = 5000):
+    rows, _summary = query_contadores(date_from, date_to, client_contains, limit)
+    return excel_response(rows, "contadores_bd1")
+
+
+@router.get("/sin-reportar")
+def sin_reportar(min_days_no_report: int = 60, client_contains: str | None = None, limit: int = 5000):
+    data = query_sin_reportar(min_days_no_report, client_contains, limit)
+    return {
+        "summary": {"total": len(data)},
+        "rows": data,
+    }
+
+
+@router.get("/sin-reportar/export")
+def sin_reportar_export(min_days_no_report: int = 60, client_contains: str | None = None, limit: int = 10000):
+    rows = query_sin_reportar(min_days_no_report, client_contains, limit)
+    return excel_response(rows, "equipos_sin_reportar_bd1")
+
+
+@router.get("/series-repetidas")
+def series_repetidas(min_distinct_clients: int = 2, active_last_days: int = 90, limit: int = 5000):
+    data = query_series_repetidas(min_distinct_clients, active_last_days, limit)
+    return {
+        "summary": {"series": len(data)},
+        "rows": data,
+    }
+
+
+@router.get("/series-repetidas/export")
+def series_repetidas_export(min_distinct_clients: int = 2, active_last_days: int = 90, limit: int = 10000):
+    rows = query_series_repetidas(min_distinct_clients, active_last_days, limit)
+    return excel_response(rows, "series_repetidas_bd1")
+
+
+@router.get("/series-repetidas/{serie}/clientes")
+def series_repetidas_clientes(serie: str):
+    data = query_series_repetidas_clientes(serie)
     return {"rows": data}
+
+
+@router.get("/series-repetidas/{serie}/clientes/export")
+def series_repetidas_clientes_export(serie: str):
+    rows = query_series_repetidas_clientes(serie)
+    return excel_response(rows, f"series_repetidas_clientes_{serie}")

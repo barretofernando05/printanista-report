@@ -23,13 +23,28 @@ export default function SinReportarPage({ openSerie }) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const load = async () => {
+  const buildQueryString = () => {
     const qs = new URLSearchParams();
+
     Object.entries(filters).forEach(([k, v]) => {
       if (v !== "") qs.set(k, v);
     });
 
-    setData(await fetchJson(`/api/operaciones/sin-reportar?${qs.toString()}`));
+    return qs.toString();
+  };
+
+  const load = async () => {
+    const qs = buildQueryString();
+    setData(await fetchJson(`/api/operaciones/sin-reportar?${qs}`));
+  };
+
+  const exportExcel = () => {
+    const qs = buildQueryString();
+    const url = qs
+      ? `/api/operaciones/sin-reportar/export?${qs}`
+      : `/api/operaciones/sin-reportar/export`;
+
+    window.open(url, "_blank");
   };
 
   useEffect(() => {
@@ -50,7 +65,9 @@ export default function SinReportarPage({ openSerie }) {
           <input
             type="number"
             value={filters.min_days_no_report}
-            onChange={(e) => setFilters({ ...filters, min_days_no_report: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, min_days_no_report: e.target.value })
+            }
             style={inputStyle}
           />
         </Field>
@@ -58,13 +75,19 @@ export default function SinReportarPage({ openSerie }) {
         <Field label="Cliente contiene">
           <input
             value={filters.client_contains}
-            onChange={(e) => setFilters({ ...filters, client_contains: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, client_contains: e.target.value })
+            }
             style={inputStyle}
           />
         </Field>
 
         <button onClick={load} style={btnStyle}>
           Generar reporte
+        </button>
+
+        <button onClick={exportExcel} style={ghostBtn}>
+          Exportar Excel
         </button>
       </FilterPanel>
 
@@ -74,7 +97,9 @@ export default function SinReportarPage({ openSerie }) {
         </h1>
 
         <div style={{ ...panel, marginBottom: 16 }}>
-          <div style={{ color: "#94a3b8", fontSize: 13 }}>Equipos que cumplen</div>
+          <div style={{ color: "#94a3b8", fontSize: 13 }}>
+            Equipos que cumplen
+          </div>
           <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>
             {data.summary.total ?? "-"}
           </div>
@@ -84,7 +109,9 @@ export default function SinReportarPage({ openSerie }) {
           <DataTable
             rows={data.rows}
             pageSize={20}
-            onRowClick={(r) => openSerie(r.serie || r.numero_serie || r.numero_serie_idx)}
+            onRowClick={(r) =>
+              openSerie(r.serie || r.numero_serie || r.numero_serie_idx)
+            }
           />
         </div>
       </div>
@@ -112,6 +139,16 @@ const btnStyle = {
   background: "#ef4444",
   color: "#fff",
   border: "none",
+  borderRadius: 12,
+  padding: "12px 16px",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const ghostBtn = {
+  background: "#0b1220",
+  color: "#fff",
+  border: "1px solid #334155",
   borderRadius: 12,
   padding: "12px 16px",
   fontWeight: 700,

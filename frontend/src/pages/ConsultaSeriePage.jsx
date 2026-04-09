@@ -20,26 +20,39 @@ export default function ConsultaSeriePage({ serie, setSerie }) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const load = async (activeTab = tab, activeSerie = serie, from = dateFrom, to = dateTo) => {
+  const load = async (
+    activeTab = tab,
+    activeSerie = serie,
+    from = dateFrom,
+    to = dateTo
+  ) => {
     if (!activeSerie) return;
 
     if (activeTab === "resumen") {
-      setData(await fetchJson(`/api/serie/${encodeURIComponent(activeSerie)}/resumen`));
+      setData(
+        await fetchJson(`/api/serie/${encodeURIComponent(activeSerie)}/resumen`)
+      );
       return;
     }
 
     if (activeTab === "insumos") {
-      setData(await fetchJson(`/api/serie/${encodeURIComponent(activeSerie)}/insumos`));
+      setData(
+        await fetchJson(`/api/serie/${encodeURIComponent(activeSerie)}/insumos`)
+      );
       return;
     }
 
     if (activeTab === "alertas") {
-      setData(await fetchJson(`/api/serie/${encodeURIComponent(activeSerie)}/alertas`));
+      setData(
+        await fetchJson(`/api/serie/${encodeURIComponent(activeSerie)}/alertas`)
+      );
       return;
     }
 
     if (activeTab === "reemplazos") {
-      setData(await fetchJson(`/api/serie/${encodeURIComponent(activeSerie)}/reemplazos`));
+      setData(
+        await fetchJson(`/api/serie/${encodeURIComponent(activeSerie)}/reemplazos`)
+      );
       return;
     }
 
@@ -54,6 +67,25 @@ export default function ConsultaSeriePage({ serie, setSerie }) {
         )
       );
     }
+  };
+
+  const exportExcel = () => {
+    if (!serie) return;
+
+    let url = `/api/serie/${encodeURIComponent(serie)}/${tab}/export`;
+
+    if (tab === "contadores") {
+      const qs = new URLSearchParams();
+      if (dateFrom) qs.set("date_from", dateFrom);
+      if (dateTo) qs.set("date_to", dateTo);
+
+      const query = qs.toString();
+      if (query) {
+        url += `?${query}`;
+      }
+    }
+
+    window.open(url, "_blank");
   };
 
   useEffect(() => {
@@ -79,7 +111,9 @@ export default function ConsultaSeriePage({ serie, setSerie }) {
 
   const applyThisMonth = () => {
     const today = new Date();
-    const start = formatDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    const start = formatDate(
+      new Date(today.getFullYear(), today.getMonth(), 1)
+    );
     const end = formatDate(today);
 
     setDateFrom(start);
@@ -117,9 +151,13 @@ export default function ConsultaSeriePage({ serie, setSerie }) {
           alignSelf: "start",
         }}
       >
-        <div style={{ fontWeight: 700, marginBottom: 14 }}>Conexión / Filtro</div>
+        <div style={{ fontWeight: 700, marginBottom: 14 }}>
+          Conexión / Filtro
+        </div>
 
-        <label style={{ display: "grid", gap: 6, fontSize: 13, color: "#94a3b8" }}>
+        <label
+          style={{ display: "grid", gap: 6, fontSize: 13, color: "#94a3b8" }}
+        >
           <span>Buscar parte de la serie</span>
           <input
             value={serieInput}
@@ -131,6 +169,14 @@ export default function ConsultaSeriePage({ serie, setSerie }) {
 
         <button onClick={() => setSerie(serieInput)} style={btnStyle}>
           Seleccionar serie
+        </button>
+
+        <button
+          onClick={exportExcel}
+          style={{ ...ghostBtn, marginTop: 10 }}
+          disabled={!serie}
+        >
+          Exportar Excel
         </button>
 
         {tab === "contadores" && (

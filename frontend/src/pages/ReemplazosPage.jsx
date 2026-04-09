@@ -26,16 +26,21 @@ export default function ReemplazosPage({ openSerie }) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  const buildQueryString = () => {
+    const qs = new URLSearchParams();
+
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v) qs.set(k, v);
+    });
+
+    return qs.toString();
+  };
+
   const load = async () => {
     setLoading(true);
     try {
-      const qs = new URLSearchParams();
-
-      Object.entries(filters).forEach(([k, v]) => {
-        if (v) qs.set(k, v);
-      });
-
-      const result = await fetchJson(`/api/operaciones/reemplazos?${qs.toString()}`);
+      const qs = buildQueryString();
+      const result = await fetchJson(`/api/operaciones/reemplazos?${qs}`);
       setData(result);
     } catch (error) {
       console.error(error);
@@ -43,6 +48,15 @@ export default function ReemplazosPage({ openSerie }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const exportExcel = () => {
+    const qs = buildQueryString();
+    const url = qs
+      ? `/api/operaciones/reemplazos/export?${qs}`
+      : `/api/operaciones/reemplazos/export`;
+
+    window.open(url, "_blank");
   };
 
   useEffect(() => {
@@ -88,6 +102,10 @@ export default function ReemplazosPage({ openSerie }) {
 
         <button onClick={load} style={btnStyle}>
           {loading ? "Cargando..." : "Ejecutar análisis"}
+        </button>
+
+        <button onClick={exportExcel} style={ghostBtn}>
+          Exportar Excel
         </button>
       </FilterPanel>
 
@@ -176,6 +194,16 @@ const btnStyle = {
   background: "#ef4444",
   color: "#fff",
   border: "none",
+  borderRadius: 12,
+  padding: "12px 16px",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const ghostBtn = {
+  background: "#0b1220",
+  color: "#fff",
+  border: "1px solid #334155",
   borderRadius: 12,
   padding: "12px 16px",
   fontWeight: 700,
