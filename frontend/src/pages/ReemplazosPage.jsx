@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { fetchJson } from "../api";
 import FilterPanel from "../components/FilterPanel";
 import DataTable from "../components/DataTable";
+import DateField from "../components/DateField";
 
 export default function ReemplazosPage({ openSerie }) {
   const [filters, setFilters] = useState({
@@ -29,19 +30,23 @@ export default function ReemplazosPage({ openSerie }) {
     setLoading(true);
     try {
       const qs = new URLSearchParams();
+
       Object.entries(filters).forEach(([k, v]) => {
         if (v) qs.set(k, v);
       });
 
       const result = await fetchJson(`/api/operaciones/reemplazos?${qs.toString()}`);
       setData(result);
+    } catch (error) {
+      console.error(error);
+      setData({ summary: {}, rows: [] });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load().catch(console.error);
+    load();
   }, []);
 
   return (
@@ -54,28 +59,28 @@ export default function ReemplazosPage({ openSerie }) {
       }}
     >
       <FilterPanel title="Parámetros (BD3)">
-        <Field label="Desde">
-          <input
-            type="date"
-            value={filters.date_from}
-            onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
-            style={inputStyle}
-          />
-        </Field>
+        <DateField
+          label="Desde"
+          value={filters.date_from}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, date_from: e.target.value }))
+          }
+        />
 
-        <Field label="Hasta">
-          <input
-            type="date"
-            value={filters.date_to}
-            onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
-            style={inputStyle}
-          />
-        </Field>
+        <DateField
+          label="Hasta"
+          value={filters.date_to}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, date_to: e.target.value }))
+          }
+        />
 
         <Field label="Cliente contiene">
           <input
             value={filters.client_contains}
-            onChange={(e) => setFilters({ ...filters, client_contains: e.target.value })}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, client_contains: e.target.value }))
+            }
             style={inputStyle}
             placeholder="Ej. BANCO"
           />
@@ -105,10 +110,10 @@ export default function ReemplazosPage({ openSerie }) {
             marginBottom: 16,
           }}
         >
-          <Mini title="Eventos" value={data.summary.eventos} />
-          <Mini title="Innecesarios" value={data.summary.innecesarios} />
-          <Mini title="No nuevos" value={data.summary.no_nuevos} />
-          <Mini title="Sin alerta" value={data.summary.sin_alerta} />
+          <Mini title="Eventos" value={data.summary?.eventos ?? 0} />
+          <Mini title="Innecesarios" value={data.summary?.innecesarios ?? 0} />
+          <Mini title="No nuevos" value={data.summary?.no_nuevos ?? 0} />
+          <Mini title="Sin alerta" value={data.summary?.sin_alerta ?? 0} />
         </div>
 
         <div style={panel}>
@@ -123,10 +128,15 @@ export default function ReemplazosPage({ openSerie }) {
           </div>
 
           <DataTable
-            rows={data.rows}
+            rows={data.rows || []}
             pageSize={20}
             onRowClick={(r) =>
-              openSerie(r.numero_serie || r.numero_serie_idx || r.serie || r.numero_serie_txt)
+              openSerie(
+                r.numero_serie ||
+                  r.numero_serie_idx ||
+                  r.serie ||
+                  r.numero_serie_txt
+              )
             }
           />
         </div>
@@ -148,7 +158,9 @@ function Mini({ title, value }) {
   return (
     <div style={panel}>
       <div style={{ color: "#94a3b8", fontSize: 13 }}>{title}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>{value ?? "-"}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>
+        {value ?? "-"}
+      </div>
     </div>
   );
 }
