@@ -46,15 +46,40 @@ export default function InicioPage({ openPage, setSerie }) {
     [data]
   );
 
-  const paginas = useMemo(
+  const alertasDiarias = useMemo(
     () =>
-      (data?.charts?.paginas_diarias || []).map((r) => ({
+      (data?.charts?.alertas_diarias || []).map((r) => ({
         fecha: shortDate(r.fecha),
-        mono: Number(r.total_mono || 0),
-        color: Number(r.total_color || 0),
+        total: Number(r.total || 0),
       })),
     [data]
   );
+
+  const alertasPorTipo = useMemo(() => {
+    const rows = data?.charts?.alertas_por_tipo_diaria || [];
+    const map = new Map();
+
+    rows.forEach((r) => {
+      const fecha = shortDate(r.fecha);
+      const tipo = normalizeTipo(r.tipo);
+      const total = Number(r.total || 0);
+
+      if (!map.has(fecha)) {
+        map.set(fecha, {
+          fecha,
+          suministro: 0,
+          mantenimiento: 0,
+          error: 0,
+          otros: 0,
+        });
+      }
+
+      const row = map.get(fecha);
+      row[tipo] += total;
+    });
+
+    return Array.from(map.values());
+  }, [data]);
 
   const applyQuickRange = (days) => {
     const today = new Date();
@@ -280,12 +305,68 @@ export default function InicioPage({ openPage, setSerie }) {
 
         <div style={sectionCard}>
           <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 16 }}>
-            Distribución de páginas
+            Alertas
           </div>
 
-          <div style={{ height: 340 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0,1fr))",
+              gap: 14,
+              marginBottom: 18,
+            }}
+          >
+            <MiniMetric
+              title="Total alertas"
+              value={formatNumber(data?.alertas?.total_alertas ?? 0)}
+            />
+            <MiniMetric
+              title="Equipos con alerta"
+              value={formatNumber(data?.alertas?.equipos_con_alerta ?? 0)}
+            />
+            <MiniMetric
+              title="Tipos de alerta"
+              value={formatNumber(data?.alertas?.tipos_alerta ?? 0)}
+            />
+          </div>
+
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>
+            Alertas por día
+          </div>
+
+          <div style={{ height: 170, marginBottom: 18 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={paginas}>
+              <AreaChart data={alertasDiarias}>
+                <CartesianGrid stroke="#1f2937" strokeDasharray="3 3" />
+                <XAxis dataKey="fecha" tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#0b1220",
+                    border: "1px solid #334155",
+                    borderRadius: 10,
+                    color: "#fff",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#f59e0b"
+                  fill="#f59e0b"
+                  fillOpacity={0.18}
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>
+            Alertas por tipo
+          </div>
+
+          <div style={{ height: 170 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={alertasPorTipo}>
                 <CartesianGrid stroke="#1f2937" strokeDasharray="3 3" />
                 <XAxis dataKey="fecha" tick={{ fill: "#94a3b8", fontSize: 12 }} />
                 <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
@@ -298,43 +379,26 @@ export default function InicioPage({ openPage, setSerie }) {
                   }}
                 />
                 <Legend wrapperStyle={{ color: "#cbd5e1" }} />
-                <Bar
-                  dataKey="mono"
-                  name="Total mono"
-                  fill="#60a5fa"
-                  radius={[6, 6, 0, 0]}
-                />
-                <Bar
-                  dataKey="color"
-                  name="Total color"
-                  fill="#c084fc"
-                  radius={[6, 6, 0, 0]}
-                />
+                <Bar dataKey="suministro" name="Suministro" fill="#60a5fa" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="mantenimiento" name="Mantenimiento" fill="#c084fc" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="error" name="Error" fill="#f87171" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="otros" name="Otros" fill="#34d399" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 14,
-              marginTop: 12,
-            }}
-          >
-            <MiniMetric
-              title="Total mono"
-              value={formatNumber(sumField(paginas, "mono"))}
-            />
-            <MiniMetric
-              title="Total color"
-              value={formatNumber(sumField(paginas, "color"))}
-            />
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function normalizeTipo(tipo) {
+  const v = String(tipo || "").toLowerCase();
+
+  if (v.includes("sumin")) return "suministro";
+  if (v.includes("manten")) return "mantenimiento";
+  if (v.includes("error")) return "error";
+  return "otros";
 }
 
 function QuickCard({ title, value, onClick }) {
@@ -358,10 +422,6 @@ function MiniMetric({ title, value }) {
 function shortDate(value) {
   if (!value) return "";
   return String(value).slice(5, 10);
-}
-
-function sumField(rows, field) {
-  return rows.reduce((acc, item) => acc + Number(item[field] || 0), 0);
 }
 
 function formatNumber(value) {

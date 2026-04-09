@@ -35,6 +35,19 @@ def home(
 
     repl_where = " AND ".join(repl_filters)
 
+    alert_filters = ["1=1"]
+    alert_params = {}
+
+    if date_from:
+        alert_filters.append("report_date >= :date_from")
+        alert_params["date_from"] = date_from
+
+    if date_to:
+        alert_filters.append("report_date <= :date_to")
+        alert_params["date_to"] = date_to
+
+    alert_where = " AND ".join(alert_filters)
+
     quick = {
         "sin_reportar": safe_count(
             "SELECT COUNT(*) AS total FROM printanista.rpt_serie_status"
@@ -84,44 +97,49 @@ def home(
         report_params,
     )
 
-    paginas_diarias = safe_rows(
+    alertas_diarias = safe_rows(
         f"""
-        WITH daily_last AS (
-            SELECT
-                n_mero_serie,
-                reportdate,
-                MAX(COALESCE(total_p_ginas_mono, 0)) AS total_mono,
-                MAX(COALESCE(total_p_ginas_color, 0)) AS total_color
-            FROM printanista.reportes_dispositivos
-            WHERE {report_where}
-            GROUP BY n_mero_serie, reportdate
-        ),
-        daily_diff AS (
-            SELECT
-                n_mero_serie,
-                reportdate,
-                total_mono,
-                total_color,
-                total_mono - LAG(total_mono) OVER (
-                    PARTITION BY n_mero_serie
-                    ORDER BY reportdate
-                ) AS mono_diff,
-                total_color - LAG(total_color) OVER (
-                    PARTITION BY n_mero_serie
-                    ORDER BY reportdate
-                ) AS color_diff
-            FROM daily_last
-        )
         SELECT
-            CAST(reportdate AS CHAR) AS fecha,
-            COALESCE(SUM(CASE WHEN mono_diff >= 0 THEN mono_diff ELSE 0 END), 0) AS total_mono,
-            COALESCE(SUM(CASE WHEN color_diff >= 0 THEN color_diff ELSE 0 END), 0) AS total_color
-        FROM daily_diff
-        GROUP BY reportdate
-        ORDER BY reportdate
+            CAST(report_date AS CHAR) AS fecha,
+            COUNT(*) AS total
+        FROM printanista_alertas.alertas_actives
+        WHERE {alert_where}
+        GROUP BY report_date
+        ORDER BY report_date
         """,
-        report_params,
+        alert_params,
     )
+
+    alertas_por_tipo_diaria = safe_rows(
+        f"""
+        SELECT
+            CAST(report_date AS CHAR) AS fecha,
+            COALESCE(JSON_UNQUOTE(JSON_EXTRACT(alerta_json, '$.Tipo')), 'Sin tipo') AS tipo,
+            COUNT(*) AS total
+        FROM printanista_alertas.alertas_actives
+        WHERE {alert_where}
+        GROUP BY report_date,
+                 COALESCE(JSON_UNQUOTE(JSON_EXTRACT(alerta_json, '$.Tipo')), 'Sin tipo')
+        ORDER BY report_date
+        """,
+        alert_params,
+    )
+
+    resumen_alertas = safe_one(
+        f"""
+        SELECT
+            COUNT(*) AS total_alertas,
+            COUNT(DISTINCT numero_serie_txt) AS equipos_con_alerta,
+            COUNT(DISTINCT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(alerta_json, '$.Tipo')), 'Sin tipo')) AS tipos_alerta
+        FROM printanista_alertas.alertas_actives
+        WHERE {alert_where}
+        """,
+        alert_params,
+    ) or {
+        "total_alertas": 0,
+        "equipos_con_alerta": 0,
+        "tipos_alerta": 0,
+    }
 
     jobs = safe_rows(
         """
@@ -139,9 +157,11 @@ def home(
         },
         "quick": quick,
         "contadores": contadores,
+        "alertas": resumen_alertas,
         "charts": {
             "evolucion_diaria": evolucion_diaria,
-            "paginas_diarias": paginas_diarias,
+            "alertas_diarias": alertas_diarias,
+            "alertas_por_tipo_diaria": alertas_por_tipo_diaria,
         },
         "jobs": jobs,
     }
