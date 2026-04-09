@@ -298,8 +298,18 @@ export default function InicioPage({ openPage, setSerie }) {
                   }}
                 />
                 <Legend wrapperStyle={{ color: "#cbd5e1" }} />
-                <Bar dataKey="mono" name="Total mono" fill="#60a5fa" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="color" name="Total color" fill="#c084fc" radius={[6, 6, 0, 0]} />
+                <Bar
+                  dataKey="mono"
+                  name="Total mono"
+                  fill="#60a5fa"
+                  radius={[6, 6, 0, 0]}
+                />
+                <Bar
+                  dataKey="color"
+                  name="Total color"
+                  fill="#c084fc"
+                  radius={[6, 6, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
