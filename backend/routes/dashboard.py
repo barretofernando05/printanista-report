@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from ..db import safe_rows, safe_count
+from ..db import safe_rows, safe_count, safe_one
 from ..services.common import build_filters
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -7,30 +7,81 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 @router.get("/home")
 def home():
-    return {
-        "quick": {
-            "sin_reportar": safe_count(
-                "SELECT COUNT(*) AS total FROM printanista.rpt_serie_status"
-            ),
-            "reemplazos_recientes": safe_count(
-                """
-                SELECT COUNT(*) AS total
-                FROM printanista_reemplazos.vw_reemplazos_insumos_pct
-                WHERE report_date >= CURDATE() - INTERVAL 30 DAY
-                """
-            ),
-            "series_repetidas": safe_count(
-                "SELECT COUNT(*) AS total FROM printanista.rpt_serie_cliente"
-            ),
-        },
-        "jobs": safe_rows(
+    quick = {
+        "sin_reportar": safe_count(
+            "SELECT COUNT(*) AS total FROM printanista.rpt_serie_status"
+        ),
+        "reemplazos_recientes": safe_count(
             """
-            SELECT id, job_name, status, started_at, finished_at
-            FROM job_runs
-            ORDER BY id DESC
-            LIMIT 10
+            SELECT COUNT(*) AS total
+            FROM printanista_reemplazos.vw_reemplazos_insumos_pct
+            WHERE report_date >= CURDATE() - INTERVAL 30 DAY
             """
         ),
+        "series_repetidas": safe_count(
+            """
+            SELECT COUNT(DISTINCT serie_norm) AS total
+            FROM printanista.rpt_serie_cliente
+            """
+        ),
+    }
+
+    contadores = safe_one(
+        """
+        SELECT
+            COUNT(*) AS total_registros,
+            COUNT(DISTINCT n_mero_serie) AS series_activas,
+            MAX(reportdate) AS ultimo_dia_reportado
+        FROM printanista.reportes_dispositivos
+        """
+    ) or {
+        "total_registros": 0,
+        "series_activas": 0,
+        "ultimo_dia_reportado": None,
+    }
+
+    evolucion_diaria = safe_rows(
+        """
+        SELECT
+            CAST(reportdate AS CHAR) AS fecha,
+            COUNT(*) AS total
+        FROM printanista.reportes_dispositivos
+        WHERE reportdate >= CURDATE() - INTERVAL 30 DAY
+        GROUP BY reportdate
+        ORDER BY reportdate
+        """
+    )
+
+    paginas_diarias = safe_rows(
+        """
+        SELECT
+            CAST(reportdate AS CHAR) AS fecha,
+            COALESCE(SUM(total_p_ginas_mono), 0) AS total_mono,
+            COALESCE(SUM(total_p_ginas_color), 0) AS total_color
+        FROM printanista.reportes_dispositivos
+        WHERE reportdate >= CURDATE() - INTERVAL 30 DAY
+        GROUP BY reportdate
+        ORDER BY reportdate
+        """
+    )
+
+    jobs = safe_rows(
+        """
+        SELECT id, job_name, status, started_at, finished_at
+        FROM job_runs
+        ORDER BY id DESC
+        LIMIT 10
+        """
+    )
+
+    return {
+        "quick": quick,
+        "contadores": contadores,
+        "charts": {
+            "evolucion_diaria": evolucion_diaria,
+            "paginas_diarias": paginas_diarias,
+        },
+        "jobs": jobs,
     }
 
 
