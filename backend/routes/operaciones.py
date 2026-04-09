@@ -30,10 +30,31 @@ def reemplazos(
 
     data = safe_rows(
         f"""
-        SELECT *
+        SELECT
+            nombre_cuenta,
+            fabricante,
+            modelo,
+            numero_serie,
+            suministro,
+            parte_oem,
+            rendimiento,
+            fecha_instalacion,
+            contador_instalacion,
+            nivel_instalacion,
+            fecha_de_reemplazo,
+            contador_al_reemplazo,
+            nivel_al_reemplazo,
+            rendimiento_objetivo,
+            rendimiento_alcanzado,
+            cobertura_alcanzada,
+            nuevo_nivel_suministro,
+            nivel_mas_reciente,
+            fecha_est_de_vacio,
+            nivel_instalacion_pct,
+            nivel_al_reemplazo_pct
         FROM printanista_reemplazos.vw_reemplazos_insumos_pct
         WHERE {where}
-        ORDER BY report_date DESC
+        ORDER BY report_date DESC, fecha_de_reemplazo DESC
         LIMIT {limit}
         """,
         params,
