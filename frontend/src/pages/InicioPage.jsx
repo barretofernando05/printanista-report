@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchJson } from "../api";
+import DateField from "../components/DateField";
 import {
   AreaChart,
   Area,
@@ -16,9 +17,24 @@ import {
 export default function InicioPage({ openPage, setSerie }) {
   const [data, setData] = useState(null);
   const [serieInput, setSerieInput] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const load = async (from = dateFrom, to = dateTo) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("date_from", from);
+    if (to) qs.set("date_to", to);
+
+    const url = qs.toString()
+      ? `/api/dashboard/home?${qs.toString()}`
+      : "/api/dashboard/home";
+
+    const result = await fetchJson(url);
+    setData(result);
+  };
 
   useEffect(() => {
-    fetchJson("/api/dashboard/home").then(setData).catch(console.error);
+    load().catch(console.error);
   }, []);
 
   const evolucion = useMemo(
@@ -39,6 +55,34 @@ export default function InicioPage({ openPage, setSerie }) {
       })),
     [data]
   );
+
+  const applyQuickRange = (days) => {
+    const today = new Date();
+    const end = formatDate(today);
+    const startDate = new Date();
+    startDate.setDate(today.getDate() - days);
+    const start = formatDate(startDate);
+
+    setDateFrom(start);
+    setDateTo(end);
+    load(start, end).catch(console.error);
+  };
+
+  const applyThisMonth = () => {
+    const today = new Date();
+    const start = formatDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    const end = formatDate(today);
+
+    setDateFrom(start);
+    setDateTo(end);
+    load(start, end).catch(console.error);
+  };
+
+  const clearRange = () => {
+    setDateFrom("");
+    setDateTo("");
+    load("", "").catch(console.error);
+  };
 
   return (
     <div>
@@ -80,6 +124,51 @@ export default function InicioPage({ openPage, setSerie }) {
           >
             Abrir
           </button>
+        </div>
+      </div>
+
+      <div style={{ ...sectionCard, marginTop: 16 }}>
+        <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 18 }}>
+          Rango de fechas
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "220px 220px auto",
+            gap: 12,
+            alignItems: "end",
+          }}
+        >
+          <DateField
+            label="Desde"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+
+          <DateField
+            label="Hasta"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button style={quickBtn} onClick={() => applyQuickRange(7)}>
+              7 días
+            </button>
+            <button style={quickBtn} onClick={() => applyQuickRange(30)}>
+              30 días
+            </button>
+            <button style={quickBtn} onClick={applyThisMonth}>
+              Este mes
+            </button>
+            <button style={secondaryBtn} onClick={() => load()}>
+              Aplicar
+            </button>
+            <button style={ghostBtn} onClick={clearRange}>
+              Limpiar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -181,7 +270,7 @@ export default function InicioPage({ openPage, setSerie }) {
                   dataKey="total"
                   stroke="#fb7185"
                   fill="#fb7185"
-                  fillOpacity={0.22}
+                  fillOpacity={0.2}
                   strokeWidth={2}
                 />
               </AreaChart>
@@ -269,6 +358,13 @@ function formatNumber(value) {
   return new Intl.NumberFormat("es-PY").format(Number(value || 0));
 }
 
+function formatDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 const sectionCard = {
   background: "#101827",
   border: "1px solid #1f2937",
@@ -310,6 +406,26 @@ const secondaryBtn = {
   border: "1px solid #334155",
   borderRadius: 12,
   padding: "12px 16px",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const ghostBtn = {
+  background: "transparent",
+  color: "#cbd5e1",
+  border: "1px solid #334155",
+  borderRadius: 12,
+  padding: "12px 16px",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const quickBtn = {
+  background: "#0b1220",
+  color: "#cbd5e1",
+  border: "1px solid #334155",
+  borderRadius: 12,
+  padding: "12px 14px",
   fontWeight: 700,
   cursor: "pointer",
 };
