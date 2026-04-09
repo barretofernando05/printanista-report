@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from ..db import safe_rows
+from ..db import safe_rows, safe_one
 
 router = APIRouter(prefix="/api/operaciones", tags=["operaciones"])
 
@@ -47,6 +47,69 @@ def reemplazos(
             "sin_alerta": 0,
         },
         "rows": data,
+    }
+
+
+@router.get("/contadores")
+def contadores(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    client_contains: str | None = None,
+    limit: int = 500,
+):
+    filters = ["1=1"]
+    params = {}
+
+    if date_from:
+        filters.append("reportdate >= :date_from")
+        params["date_from"] = date_from
+
+    if date_to:
+        filters.append("reportdate <= :date_to")
+        params["date_to"] = date_to
+
+    if client_contains:
+        filters.append("LOWER(COALESCE(nombre_cuenta,'')) LIKE :client_contains")
+        params["client_contains"] = f"%{client_contains.lower()}%"
+
+    where = " AND ".join(filters)
+
+    rows = safe_rows(
+        f"""
+        SELECT
+            n_mero_serie AS numero_serie,
+            nombre_cuenta,
+            fabricante,
+            modelo,
+            reportdate,
+            total_p_ginas_mono,
+            total_p_ginas_color,
+            direcci_n_ip,
+            _ltima_fecha_auditor_a_medidores,
+            sourcefile
+        FROM printanista.reportes_dispositivos
+        WHERE {where}
+        ORDER BY reportdate DESC
+        LIMIT {limit}
+        """,
+        params,
+    )
+
+    summary = safe_one(
+        f"""
+        SELECT
+            COUNT(*) AS total,
+            COUNT(DISTINCT n_mero_serie) AS series,
+            MAX(reportdate) AS ultimo_reporte
+        FROM printanista.reportes_dispositivos
+        WHERE {where}
+        """,
+        params,
+    ) or {"total": 0, "series": 0, "ultimo_reporte": None}
+
+    return {
+        "summary": summary,
+        "rows": rows,
     }
 
 

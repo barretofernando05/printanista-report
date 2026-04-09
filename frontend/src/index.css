@@ -1,16 +1,14 @@
-/* ===============================
-   BASE GENERAL
-================================= */
 body {
   margin: 0;
-  font-family: Inter, system-ui, Arial;
+  font-family: Inter, system-ui, Arial, sans-serif;
   background: #020617;
   color: #fff;
 }
 
-/* ===============================
-   INPUT DATE (react-datepicker)
-================================= */
+* {
+  box-sizing: border-box;
+}
+
 .date-input-custom {
   width: 100%;
   background: #0b1220;
@@ -22,9 +20,6 @@ body {
   outline: none;
 }
 
-/* ===============================
-   CALENDARIO DARK MODE
-================================= */
 .react-datepicker {
   background-color: #0b1220;
   border: 1px solid #334155;
@@ -37,58 +32,37 @@ body {
   border-bottom: 1px solid #334155;
 }
 
-.react-datepicker__current-month {
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header {
   color: #fff;
 }
 
 .react-datepicker__day-name,
-.react-datepicker__day {
+.react-datepicker__day,
+.react-datepicker__time-name {
   color: #e5e7eb;
 }
 
-.react-datepicker__day:hover {
+.react-datepicker__day:hover,
+.react-datepicker__month-text:hover,
+.react-datepicker__quarter-text:hover,
+.react-datepicker__year-text:hover {
   background-color: #1f2937;
   border-radius: 6px;
 }
 
-.react-datepicker__day--selected {
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
   background-color: #ef4444;
   color: #fff;
+  border-radius: 6px;
 }
 
 .react-datepicker__navigation-icon::before {
   border-color: #cbd5e1;
 }
 
-/* Quita triangulito feo */
 .react-datepicker__triangle {
   display: none;
-}
-
-/* ===============================
-   SCROLL TABLE (muy importante)
-================================= */
-.table-scroll {
-  overflow: auto;
-  max-height: 70vh;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-th {
-  text-align: left;
-  padding: 10px;
-  background: #0f172a;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-td {
-  padding: 10px;
-  border-top: 1px solid #1f2937;
 }

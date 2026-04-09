@@ -9,11 +9,13 @@ import {
   Cable,
   Menu,
   X,
+  BarChart3,
 } from "lucide-react";
 
 const items = [
   ["inicio", "Inicio", LayoutDashboard],
   ["reemplazos", "Reemplazos", Repeat2],
+  ["contadores", "Contadores", BarChart3],
   ["sinReportar", "Equipos sin reportar", Printer],
   ["seriesRepetidas", "Series repetidas", Cable],
   ["consulta", "Consulta por serie", Search],
